@@ -283,10 +283,10 @@
   }
 
   // NEW: delete account (soft delete on backend)
-  async function authDeleteAccount(password) {
+  async function authDeleteAccount(email, password) {
     const res = await apiFetch("/api/v1/auth/delete-account", {
       method: "POST",
-      body: JSON.stringify({ password, confirm: "DELETE" }),
+      body: JSON.stringify({ email, password, confirm: "DELETE" }),
     });
     return res.json();
   }
@@ -956,7 +956,7 @@
               return;
             }
 
-            await authDeleteAccount(pw);
+            await authDeleteAccount(emailInput.value, passwordInput.value);
 
             // Clear session
             clearAuthToken();
