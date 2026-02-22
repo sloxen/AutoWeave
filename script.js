@@ -112,13 +112,24 @@
   // =========================================================
   // 2) Auth helpers
   // =========================================================
-  function getAuthToken() {
-    try {
-      return localStorage.getItem(AUTH_STORAGE_KEY) || "";
-    } catch (e) {
-      return "";
+  function normalizeToken(raw) {
+    if (!raw) return "";
+    let t = String(raw).trim();
+
+    // If token was stored as JSON string: "\"eyJ...\""
+    if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+      try { t = JSON.parse(t); } catch (e) { /* ignore */ }
+      t = String(t).trim();
     }
+
+    // If token was stored with Bearer prefix, strip it
+    if (/^bearer\s+/i.test(t)) {
+      t = t.replace(/^bearer\s+/i, "").trim();
+    }
+
+    return t;
   }
+
   function getAuthEmail() {
     try {
       return localStorage.getItem(AUTH_EMAIL_KEY) || "";
@@ -126,35 +137,62 @@
       return "";
     }
   }
-  function setAuthToken(token, email) {
-    try {
-      if (token) localStorage.setItem(AUTH_STORAGE_KEY, token);
-      else localStorage.removeItem(AUTH_STORAGE_KEY);
-      if (email) localStorage.setItem(AUTH_EMAIL_KEY, email);
-    } catch (e) {}
-  }
-  function clearAuthToken() {
-    setAuthToken("", "");
+
+  function normalizeToken(raw) {
+    if (!raw) return "";
+    let t = String(raw).trim();
+
+    // stored as "Bearer <jwt>" -> keep only jwt
+    if (/^bearer\s+/i.test(t)) t = t.replace(/^bearer\s+/i, "").trim();
+
+    // stored as a quoted JSON string -> unquote
+    if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+      try { t = JSON.parse(t); } catch (e) {}
+      t = String(t).trim();
+    }
+
+    return t;
   }
 
-  function apiUrl(path) {
-    const p = String(path || "");
-    if (!API_BASE) return p.startsWith("/") ? p : `/${p}`;
-    return `${API_BASE}${p.startsWith("/") ? "" : "/"}${p}`;
+  function getAuthToken() {
+    try {
+      return normalizeToken(localStorage.getItem(AUTH_STORAGE_KEY) || "");
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function setAuthToken(token, email) {
+    try {
+      const t = normalizeToken(token);
+
+      if (t) localStorage.setItem(AUTH_STORAGE_KEY, t);
+      else localStorage.removeItem(AUTH_STORAGE_KEY);
+
+      if (email) localStorage.setItem(AUTH_EMAIL_KEY, String(email));
+      else localStorage.removeItem(AUTH_EMAIL_KEY);
+    } catch (e) {}
+  }
+
+  function clearAuthToken() {
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(AUTH_EMAIL_KEY);
+    } catch (e) {}
   }
 
   async function apiFetch(path, options = {}) {
     const token = getAuthToken();
+
     const headers = new Headers(options.headers || {});
     if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
       headers.set("Content-Type", "application/json");
     }
+
+    // ✅ Always send Bearer <JWT> (cleaned)
     if (token) headers.set("Authorization", `Bearer ${token}`);
 
-    const res = await fetch(apiUrl(path), {
-      ...options,
-      headers,
-    });
+    const res = await fetch(apiUrl(path), { ...options, headers });
 
     if (!res.ok) {
       let msg = `${res.status} ${res.statusText}`;
@@ -172,7 +210,25 @@
       err.status = res.status;
       throw err;
     }
+
     return res;
+  }
+  function getAuthEmail() {
+    try {
+      return localStorage.getItem(AUTH_EMAIL_KEY) || "";
+    } catch (e) {
+      return "";
+    }
+  }
+  
+  function clearAuthToken() {
+    setAuthToken("", "");
+  }
+
+  function apiUrl(path) {
+    const p = String(path || "");
+    if (!API_BASE) return p.startsWith("/") ? p : `/${p}`;
+    return `${API_BASE}${p.startsWith("/") ? "" : "/"}${p}`;
   }
 
   async function authRegister(email, password) {
@@ -819,7 +875,18 @@
 
           if (mode === "login") {
             const out = await authLogin(em, pw);
-            setAuthToken(out.access_token, em);
+            const token =
+              out?.access_token ||
+              out?.token ||
+              out?.accessToken ||
+              out?.jwt ||
+              "";
+
+            if (!token) {
+              throw new Error("Login succeeded but token missing in response");
+            }
+
+            setAuthToken(token, em);
             msg.textContent = "Logged in ✔";
             syncAuthUi();
             setTimeout(closeModal, 450);
@@ -928,6 +995,12 @@
     function syncAuthUi() {
       const token = getAuthToken();
       const email = getAuthEmail();
+      const signedIn = Boolean(token);
+
+      if (!signedIn) {
+        // optional: also clear email so UI doesn't lie
+        // localStorage.removeItem(AUTH_EMAIL_KEY);
+      }
       const authed = !!token;
 
       status.textContent = authed ? `Signed in: ${email || "account"}` : "Signed out";
