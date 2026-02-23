@@ -249,23 +249,68 @@
 
               <div class="aw-card">
                 <h4 class="aw-card__title">Quick stats</h4>
-                <textarea id="statsMerged" readonly placeholder="Stats will appear here…"></textarea>
+                <div id="statsMerged" aria-label="Quick stats output" style="width:100%; min-height:120px; border:1px solid rgba(15,31,23,0.10); border-radius:14px; padding:12px; background:rgba(255,255,255,0.55); overflow:auto;">
+  <div style="color: rgba(15,31,23,0.55); font-size:0.95rem;">Stats will appear here…</div>
+</div>
               </div>
 
               <div class="aw-card">
                 <h4 class="aw-card__title">Visualisations</h4>
 
                 <div class="contact-form" style="max-width: 100%;">
-                  <div class="form-row" style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
-                    <label for="groupBySel" style="margin:0;">Group by</label>
-                    <select id="groupBySel">
-                      <option value="day">Day</option>
-                      <option value="week">Week</option>
-                      <option value="month">Month</option>
-                    </select>
-                  </div>
-                </div>
+                  <!-- Controls (no new CSS: inline only) -->
+                  <div class="form-row" style="display:flex; flex-direction:column; gap:0.75rem; align-items:stretch;">
 
+                    <!-- DATE RANGE -->
+                    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+                      <div style="min-width:110px; font-size:0.78rem; letter-spacing:0.06em; font-weight:800; color: rgba(15,31,23,0.55); text-transform:uppercase;">Range</div>
+                      <div id="owRangePills" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+
+                        <button type="button" id="owRange14">14 days</button>
+                        <button type="button" id="owRange30">30 days</button>
+                        <button type="button" id="owRange90">90 days</button>
+                        <button type="button" id="owRangeAll">All</button>
+                        <button type="button" id="owRangeCustom">Custom</button>
+                      </div>
+                      <div id="owRangeCustomInputs" style="display:none; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                        <input id="owFromDate" type="date" />
+                        <span style="color: rgba(15,31,23,0.55);">to</span>
+                        <input id="owToDate" type="date" />
+                        <button type="button" id="owApplyCustom">Apply</button>
+                      </div>
+                    </div>
+
+                    <!-- GROUP -->
+                    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+                      <div style="min-width:110px; font-size:0.78rem; letter-spacing:0.06em; font-weight:800; color: rgba(15,31,23,0.55); text-transform:uppercase;">Group</div>
+                      <div id="owGroupPills" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                        <button type="button" id="owGroupDay">Day</button>
+                        <button type="button" id="owGroupWeek">Week</button>
+                        <button type="button" id="owGroupMonth">Month</button>
+                        <button type="button" id="owGroupYear">Year</button>
+                      </div>
+
+                      <!-- keep existing select for backward-compat; hidden -->
+                      <label for="groupBySel" style="margin:0; position:absolute; left:-9999px;">Group by</label>
+                      <select id="groupBySel" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">
+                        <option value="day">Day</option>
+                        <option value="week">Week</option>
+                        <option value="month">Month</option>
+                        <option value="year">Year</option>
+                      </select>
+                    </div>
+
+                    <!-- MODE + EXPORT -->
+                    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; justify-content:space-between;">
+                      <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+                        <div style="min-width:110px; font-size:0.78rem; letter-spacing:0.06em; font-weight:800; color: rgba(15,31,23,0.55); text-transform:uppercase;">Mode</div>
+                        <div id="owModePills" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                          <button type="button" id="owModeCumulative">Cumulative</button>
+                          <button type="button" id="owExportPng">Export PNG</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 <div id="visIncome"></div>
                 <div class="spacer-lg"></div>
                 <div id="visDuration"></div>
