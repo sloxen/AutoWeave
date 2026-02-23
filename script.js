@@ -7,1139 +7,1138 @@
 //   - pill buttons for range + grouping
 //   - custom range date picker
 
-(function () {
-  // =========================================================
-  // 0) Config
-  // =========================================================
-  // Prefer tech.html override if present
-  const API_BASE = (window.AUTOWEAVE_API_BASE && String(window.AUTOWEAVE_API_BASE).trim()) || "https://autoweave-backend.onrender.com";
-  const AUTH_STORAGE_KEY = "ow_auth_token";
-  const AUTH_EMAIL_KEY = "ow_auth_email";
-  console.log("AUTOWEAVE API_BASE =", API_BASE, "global =", window.AUTOWEAVE_API_BASE);
+// =========================================================
+// 0) Config
+// =========================================================
+// Prefer tech.html override if present
+const API_BASE = (window.AUTOWEAVE_API_BASE && String(window.AUTOWEAVE_API_BASE).trim()) || "https://autoweave-backend.onrender.com";
+const AUTH_STORAGE_KEY = "ow_auth_token";
+const AUTH_EMAIL_KEY = "ow_auth_email";
+console.log("AUTOWEAVE API_BASE =", API_BASE, "global =", window.AUTOWEAVE_API_BASE);
 
-  // =========================================================
-  // 1) Utilities
-  // =========================================================
-  function $(sel, root = document) {
-    return root.querySelector(sel);
+// =========================================================
+// 1) Utilities
+// =========================================================
+function $(sel, root = document) {
+  return root.querySelector(sel);
+}
+function $all(sel, root = document) {
+  return Array.from(root.querySelectorAll(sel));
+}
+
+function safeJsonParse(str, fallback = null) {
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    return fallback;
   }
-  function $all(sel, root = document) {
-    return Array.from(root.querySelectorAll(sel));
+}
+
+function fmtMoney(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return "0";
+  return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function fmtHours(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return "0";
+  return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function fmtRatio(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return "0";
+  return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function clamp(n, lo, hi) {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function isoDate(d) {
+  const dt = (d instanceof Date) ? d : new Date(d);
+  if (Number.isNaN(dt.getTime())) return "";
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const day = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function parseDateish(s) {
+  if (!s) return null;
+  const dt = new Date(s);
+  if (!Number.isNaN(dt.getTime())) return dt;
+  const m = String(s).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) {
+    const dd = Number(m[1]);
+    const mm = Number(m[2]);
+    const yy = Number(m[3]);
+    const d2 = new Date(yy, mm - 1, dd);
+    if (!Number.isNaN(d2.getTime())) return d2;
+  }
+  return null;
+}
+
+function sum(arr) {
+  let t = 0;
+  for (const x of arr) t += Number(x) || 0;
+  return t;
+}
+
+function groupBy(arr, keyFn) {
+  const m = new Map();
+  for (const item of arr) {
+    const k = keyFn(item);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(item);
+  }
+  return m;
+}
+
+function uniq(arr) {
+  return Array.from(new Set(arr));
+}
+
+function debounce(fn, ms = 200) {
+  let t = null;
+  return (...args) => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+}
+
+// =========================================================
+// 2) Auth helpers
+// =========================================================
+function normalizeToken(raw) {
+  if (!raw) return "";
+  let t = String(raw).trim();
+
+  // If token was stored as JSON string: "\"eyJ...\""
+  if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+    try { t = JSON.parse(t); } catch (e) { /* ignore */ }
+    t = String(t).trim();
   }
 
-  function safeJsonParse(str, fallback = null) {
+  // If token was stored with Bearer prefix, strip it
+  if (/^bearer\s+/i.test(t)) {
+    t = t.replace(/^bearer\s+/i, "").trim();
+  }
+
+  return t;
+}
+
+function getAuthEmail() {
+  try {
+    return localStorage.getItem(AUTH_EMAIL_KEY) || "";
+  } catch (e) {
+    return "";
+  }
+}
+
+function normalizeToken(raw) {
+  if (!raw) return "";
+  let t = String(raw).trim();
+
+  // stored as "Bearer <jwt>" -> keep only jwt
+  if (/^bearer\s+/i.test(t)) t = t.replace(/^bearer\s+/i, "").trim();
+
+  // stored as a quoted JSON string -> unquote
+  if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+    try { t = JSON.parse(t); } catch (e) {}
+    t = String(t).trim();
+  }
+
+  return t;
+}
+
+function getAuthToken() {
+  try {
+    return normalizeToken(localStorage.getItem(AUTH_STORAGE_KEY) || "");
+  } catch (e) {
+    return "";
+  }
+}
+
+function setAuthToken(token, email) {
+  try {
+    const t = normalizeToken(token);
+
+    if (t) localStorage.setItem(AUTH_STORAGE_KEY, t);
+    else localStorage.removeItem(AUTH_STORAGE_KEY);
+
+    if (email) localStorage.setItem(AUTH_EMAIL_KEY, String(email));
+    else localStorage.removeItem(AUTH_EMAIL_KEY);
+  } catch (e) {}
+}
+
+function clearAuthToken() {
+  try {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem(AUTH_EMAIL_KEY);
+  } catch (e) {}
+}
+
+async function apiFetch(path, options = {}) {
+  const token = getAuthToken();
+
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  // ✅ Always send Bearer <JWT> (cleaned)
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  console.log("apiFetch token length =", (token || "").length);
+  console.log("apiFetch token preview =", (token || "").slice(0, 20));
+
+  const res = await fetch(apiUrl(path), { ...options, headers });
+
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
     try {
-      return JSON.parse(str);
-    } catch (e) {
-      return fallback;
-    }
-  }
-
-  function fmtMoney(n) {
-    const x = Number(n);
-    if (!Number.isFinite(x)) return "0";
-    return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  }
-
-  function fmtHours(n) {
-    const x = Number(n);
-    if (!Number.isFinite(x)) return "0";
-    return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  }
-
-  function fmtRatio(n) {
-    const x = Number(n);
-    if (!Number.isFinite(x)) return "0";
-    return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  }
-
-  function clamp(n, lo, hi) {
-    return Math.max(lo, Math.min(hi, n));
-  }
-
-  function isoDate(d) {
-    const dt = (d instanceof Date) ? d : new Date(d);
-    if (Number.isNaN(dt.getTime())) return "";
-    const y = dt.getFullYear();
-    const m = String(dt.getMonth() + 1).padStart(2, "0");
-    const day = String(dt.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  }
-
-  function parseDateish(s) {
-    if (!s) return null;
-    const dt = new Date(s);
-    if (!Number.isNaN(dt.getTime())) return dt;
-    const m = String(s).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-    if (m) {
-      const dd = Number(m[1]);
-      const mm = Number(m[2]);
-      const yy = Number(m[3]);
-      const d2 = new Date(yy, mm - 1, dd);
-      if (!Number.isNaN(d2.getTime())) return d2;
-    }
-    return null;
-  }
-
-  function sum(arr) {
-    let t = 0;
-    for (const x of arr) t += Number(x) || 0;
-    return t;
-  }
-
-  function groupBy(arr, keyFn) {
-    const m = new Map();
-    for (const item of arr) {
-      const k = keyFn(item);
-      if (!m.has(k)) m.set(k, []);
-      m.get(k).push(item);
-    }
-    return m;
-  }
-
-  function uniq(arr) {
-    return Array.from(new Set(arr));
-  }
-
-  function debounce(fn, ms = 200) {
-    let t = null;
-    return (...args) => {
-      if (t) clearTimeout(t);
-      t = setTimeout(() => fn(...args), ms);
-    };
-  }
-
-  // =========================================================
-  // 2) Auth helpers
-  // =========================================================
-  function normalizeToken(raw) {
-    if (!raw) return "";
-    let t = String(raw).trim();
-
-    // If token was stored as JSON string: "\"eyJ...\""
-    if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
-      try { t = JSON.parse(t); } catch (e) { /* ignore */ }
-      t = String(t).trim();
-    }
-
-    // If token was stored with Bearer prefix, strip it
-    if (/^bearer\s+/i.test(t)) {
-      t = t.replace(/^bearer\s+/i, "").trim();
-    }
-
-    return t;
-  }
-
-  function getAuthEmail() {
-    try {
-      return localStorage.getItem(AUTH_EMAIL_KEY) || "";
-    } catch (e) {
-      return "";
-    }
-  }
-
-  function normalizeToken(raw) {
-    if (!raw) return "";
-    let t = String(raw).trim();
-
-    // stored as "Bearer <jwt>" -> keep only jwt
-    if (/^bearer\s+/i.test(t)) t = t.replace(/^bearer\s+/i, "").trim();
-
-    // stored as a quoted JSON string -> unquote
-    if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
-      try { t = JSON.parse(t); } catch (e) {}
-      t = String(t).trim();
-    }
-
-    return t;
-  }
-
-  function getAuthToken() {
-    try {
-      return normalizeToken(localStorage.getItem(AUTH_STORAGE_KEY) || "");
-    } catch (e) {
-      return "";
-    }
-  }
-
-  function setAuthToken(token, email) {
-    try {
-      const t = normalizeToken(token);
-
-      if (t) localStorage.setItem(AUTH_STORAGE_KEY, t);
-      else localStorage.removeItem(AUTH_STORAGE_KEY);
-
-      if (email) localStorage.setItem(AUTH_EMAIL_KEY, String(email));
-      else localStorage.removeItem(AUTH_EMAIL_KEY);
+      const ct = res.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        const j = await res.json();
+        msg = j?.detail || j?.message || msg;
+      } else {
+        const t = await res.text();
+        if (t) msg = t;
+      }
     } catch (e) {}
+    const err = new Error(String(msg));
+    err.status = res.status;
+    throw err;
   }
 
-  function clearAuthToken() {
-    try {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      localStorage.removeItem(AUTH_EMAIL_KEY);
-    } catch (e) {}
+  return res;
+}
+function getAuthEmail() {
+  try {
+    return localStorage.getItem(AUTH_EMAIL_KEY) || "";
+  } catch (e) {
+    return "";
   }
+}
 
-  async function apiFetch(path, options = {}) {
-    const token = getAuthToken();
+function clearAuthToken() {
+  setAuthToken("", "");
+}
 
-    const headers = new Headers(options.headers || {});
-    if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
-      headers.set("Content-Type", "application/json");
-    }
+function apiUrl(path) {
+  const p = String(path || "");
+  if (!API_BASE) return p.startsWith("/") ? p : `/${p}`;
+  return `${API_BASE}${p.startsWith("/") ? "" : "/"}${p}`;
+}
 
-    // ✅ Always send Bearer <JWT> (cleaned)
-    if (token) headers.set("Authorization", `Bearer ${token}`);
+async function authRegister(email, password) {
+  const res = await apiFetch("/api/v1/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  return res.json();
+}
 
-    console.log("apiFetch token length =", (token || "").length);
-    console.log("apiFetch token preview =", (token || "").slice(0, 20));
+async function authLogin(email, password) {
+  const res = await apiFetch("/api/v1/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  return res.json();
+}
 
-    const res = await fetch(apiUrl(path), { ...options, headers });
+async function authForgot(email) {
+  const res = await apiFetch("/api/v1/auth/forgot", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+  return res.json();
+}
 
-    if (!res.ok) {
-      let msg = `${res.status} ${res.statusText}`;
-      try {
-        const ct = res.headers.get("content-type") || "";
-        if (ct.includes("application/json")) {
-          const j = await res.json();
-          msg = j?.detail || j?.message || msg;
-        } else {
-          const t = await res.text();
-          if (t) msg = t;
-        }
-      } catch (e) {}
-      const err = new Error(String(msg));
-      err.status = res.status;
-      throw err;
-    }
+async function authReset(email, token, new_password) {
+  const res = await apiFetch("/api/v1/auth/reset", {
+    method: "POST",
+    body: JSON.stringify({ email, token, new_password }),
+  });
+  return res.json();
+}
 
-    return res;
+async function authVerify(email, token) {
+  const res = await apiFetch("/api/v1/auth/verify", {
+    method: "POST",
+    body: JSON.stringify({ email, token }),
+  });
+  return res.json();
+}
+
+async function authResendVerify(email) {
+  const res = await apiFetch("/api/v1/auth/resend-verify", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+  return res.json();
+}
+
+// NEW: delete account (soft delete on backend)
+async function authDeleteAccount(email, password, confirm) {
+  const res = await apiFetch("/api/v1/auth/delete-account", {
+    method: "POST",
+    body: JSON.stringify({ email, password, confirm }),
+  });
+  return res.json();
+}
+
+// =========================================================
+// 3) Visualisation helpers (lightweight stacked bars)
+// =========================================================
+const PROJECT_COLORS = [
+  "#ff0000",
+  "#ff6003",
+  "#ffe600",
+  "#1eff00",
+  "#00ff9d",
+  "#71ccc1",
+  "#0400ff",
+  "#f700ff",
+  "#ff7c7c",
+  "#ffb477",
+  "#fbfd83",
+  "#83ff83",
+];
+
+function colorForProject(name, projectNames) {
+  const idx = projectNames.indexOf(name);
+  return PROJECT_COLORS[idx % PROJECT_COLORS.length];
+}
+
+function createEl(tag, props = {}, children = []) {
+  const el = document.createElement(tag);
+  Object.assign(el, props);
+  for (const c of children) {
+    if (typeof c === "string") el.appendChild(document.createTextNode(c));
+    else if (c) el.appendChild(c);
   }
-  function getAuthEmail() {
-    try {
-      return localStorage.getItem(AUTH_EMAIL_KEY) || "";
-    } catch (e) {
-      return "";
-    }
-  }
-  
-  function clearAuthToken() {
-    setAuthToken("", "");
-  }
+  return el;
+}
 
-  function apiUrl(path) {
-    const p = String(path || "");
-    if (!API_BASE) return p.startsWith("/") ? p : `/${p}`;
-    return `${API_BASE}${p.startsWith("/") ? "" : "/"}${p}`;
-  }
+function stylePillButton(btn) {
+  btn.className = "aw-pill";
+  btn.style.display = "inline-flex";
+  btn.style.alignItems = "center";
+  btn.style.gap = "0.45rem";
+  btn.style.padding = "0 12px";
+  btn.style.height = "36px";
+  btn.style.borderRadius = "9999px";
+  btn.style.border = "1px solid rgba(15,31,23,0.14)";
+  btn.style.background = "rgba(255,255,255,0.92)";
+  btn.style.color = "rgba(15,31,23,0.86)";
+  btn.style.fontWeight = "700";
+  btn.style.letterSpacing = "0.02em";
+  btn.style.textTransform = "uppercase";
+  btn.style.cursor = "pointer";
+  btn.style.userSelect = "none";
+}
 
-  async function authRegister(email, password) {
-    const res = await apiFetch("/api/v1/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    return res.json();
-  }
+// NEW: danger look (still consistent with pill system)
+function stylePillDanger(btn) {
+  stylePillButton(btn);
+  btn.style.border = "1px solid rgba(185, 28, 28, 0.35)";
+  btn.style.background = "rgba(220, 38, 38, 0.08)";
+  btn.style.color = "rgba(185, 28, 28, 0.95)";
+}
 
-  async function authLogin(email, password) {
-    const res = await apiFetch("/api/v1/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    return res.json();
-  }
-
-  async function authForgot(email) {
-    const res = await apiFetch("/api/v1/auth/forgot", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    });
-    return res.json();
-  }
-
-  async function authReset(email, token, new_password) {
-    const res = await apiFetch("/api/v1/auth/reset", {
-      method: "POST",
-      body: JSON.stringify({ email, token, new_password }),
-    });
-    return res.json();
-  }
-
-  async function authVerify(email, token) {
-    const res = await apiFetch("/api/v1/auth/verify", {
-      method: "POST",
-      body: JSON.stringify({ email, token }),
-    });
-    return res.json();
-  }
-
-  async function authResendVerify(email) {
-    const res = await apiFetch("/api/v1/auth/resend-verify", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    });
-    return res.json();
-  }
-
-  // NEW: delete account (soft delete on backend)
-  async function authDeleteAccount(email, password, confirm) {
-    const res = await apiFetch("/api/v1/auth/delete-account", {
-      method: "POST",
-      body: JSON.stringify({ email, password, confirm }),
-    });
-    return res.json();
-  }
-
-  // =========================================================
-  // 3) Visualisation helpers (lightweight stacked bars)
-  // =========================================================
-  const PROJECT_COLORS = [
-    "#ff0000",
-    "#ff6003",
-    "#ffe600",
-    "#1eff00",
-    "#00ff9d",
-    "#71ccc1",
-    "#0400ff",
-    "#f700ff",
-    "#ff7c7c",
-    "#ffb477",
-    "#fbfd83",
-    "#83ff83",
-  ];
-
-  function colorForProject(name, projectNames) {
-    const idx = projectNames.indexOf(name);
-    return PROJECT_COLORS[idx % PROJECT_COLORS.length];
-  }
-
-  function createEl(tag, props = {}, children = []) {
-    const el = document.createElement(tag);
-    Object.assign(el, props);
-    for (const c of children) {
-      if (typeof c === "string") el.appendChild(document.createTextNode(c));
-      else if (c) el.appendChild(c);
-    }
-    return el;
-  }
-
-  function stylePillButton(btn) {
-    btn.className = "aw-pill";
-    btn.style.display = "inline-flex";
-    btn.style.alignItems = "center";
-    btn.style.gap = "0.45rem";
-    btn.style.padding = "0 12px";
-    btn.style.height = "36px";
-    btn.style.borderRadius = "9999px";
-    btn.style.border = "1px solid rgba(15,31,23,0.14)";
+function setPillActive(btn, active) {
+  if (active) {
+    btn.style.background = "rgba(15,31,23,0.92)";
+    btn.style.color = "white";
+    btn.style.borderColor = "rgba(15,31,23,0.92)";
+  } else {
     btn.style.background = "rgba(255,255,255,0.92)";
     btn.style.color = "rgba(15,31,23,0.86)";
-    btn.style.fontWeight = "700";
-    btn.style.letterSpacing = "0.02em";
-    btn.style.textTransform = "uppercase";
-    btn.style.cursor = "pointer";
-    btn.style.userSelect = "none";
+    btn.style.borderColor = "rgba(15,31,23,0.14)";
   }
+}
 
-  // NEW: danger look (still consistent with pill system)
-  function stylePillDanger(btn) {
-    stylePillButton(btn);
-    btn.style.border = "1px solid rgba(185, 28, 28, 0.35)";
-    btn.style.background = "rgba(220, 38, 38, 0.08)";
-    btn.style.color = "rgba(185, 28, 28, 0.95)";
-  }
+function clearEl(el) {
+  while (el && el.firstChild) el.removeChild(el.firstChild);
+}
 
-  function setPillActive(btn, active) {
-    if (active) {
-      btn.style.background = "rgba(15,31,23,0.92)";
-      btn.style.color = "white";
-      btn.style.borderColor = "rgba(15,31,23,0.92)";
-    } else {
-      btn.style.background = "rgba(255,255,255,0.92)";
-      btn.style.color = "rgba(15,31,23,0.86)";
-      btn.style.borderColor = "rgba(15,31,23,0.14)";
-    }
-  }
+function renderStackedBars(container, data, projectNames, valueKey, title) {
+  clearEl(container);
 
-  function clearEl(el) {
-    while (el && el.firstChild) el.removeChild(el.firstChild);
-  }
+  const header = createEl("div", { className: "aw-vis-header" }, [
+    createEl("div", { className: "aw-vis-title", textContent: title }),
+  ]);
 
-  function renderStackedBars(container, data, projectNames, valueKey, title) {
-    clearEl(container);
+  container.appendChild(header);
 
-    const header = createEl("div", { className: "aw-vis-header" }, [
-      createEl("div", { className: "aw-vis-title", textContent: title }),
-    ]);
+  const chart = createEl("div", { className: "aw-stacked-chart" });
+  chart.style.display = "grid";
+  chart.style.gridTemplateColumns = `repeat(${Math.max(1, data.length)}, minmax(0, 1fr))`;
+  chart.style.gap = "8px";
+  chart.style.alignItems = "end";
+  chart.style.padding = "8px 2px 0 2px";
 
-    container.appendChild(header);
+  const maxTotal = Math.max(1, ...data.map(d => Number(d.total) || 0));
 
-    const chart = createEl("div", { className: "aw-stacked-chart" });
-    chart.style.display = "grid";
-    chart.style.gridTemplateColumns = `repeat(${Math.max(1, data.length)}, minmax(0, 1fr))`;
-    chart.style.gap = "8px";
-    chart.style.alignItems = "end";
-    chart.style.padding = "8px 2px 0 2px";
+  for (const d of data) {
+    const col = createEl("div", { className: "aw-bar-col" });
+    col.style.display = "flex";
+    col.style.flexDirection = "column";
+    col.style.justifyContent = "flex-end";
+    col.style.gap = "6px";
 
-    const maxTotal = Math.max(1, ...data.map(d => Number(d.total) || 0));
-
-    for (const d of data) {
-      const col = createEl("div", { className: "aw-bar-col" });
-      col.style.display = "flex";
-      col.style.flexDirection = "column";
-      col.style.justifyContent = "flex-end";
-      col.style.gap = "6px";
-
-      const bar = createEl("div", { className: "aw-bar" });
-      bar.style.width = "100%";
-      bar.style.height = `${Math.round((Number(d.total) || 0) / maxTotal * 140)}px`;
-      bar.style.borderRadius = "12px";
-      bar.style.overflow = "hidden";
-      bar.style.display = "flex";
-      bar.style.flexDirection = "column-reverse";
-      bar.style.boxShadow = "0 10px 22px rgba(15,31,23,0.10)";
-      bar.style.border = "1px solid rgba(15,31,23,0.10)";
-      bar.title = `${d.key}\nTotal: ${fmtMoney(d.total)}`;
-
-      for (const p of projectNames) {
-        const v = Number(d.values?.[p]) || 0;
-        if (v <= 0) continue;
-        const seg = createEl("div", { className: "aw-bar-seg" });
-        const pct = (d.total > 0) ? (v / d.total) : 0;
-        seg.style.height = `${pct * 100}%`;
-        seg.style.background = colorForProject(p, projectNames);
-        seg.style.opacity = "0.85";
-        seg.title = `${p}: ${valueKey === "ratio" ? fmtRatio(v) : (valueKey === "hours" ? fmtHours(v) : fmtMoney(v))}`;
-        bar.appendChild(seg);
-      }
-
-      const label = createEl("div", { className: "aw-bar-label", textContent: d.key });
-      label.style.fontSize = "0.8rem";
-      label.style.textAlign = "center";
-      label.style.color = "rgba(15,31,23,0.62)";
-      label.style.whiteSpace = "nowrap";
-      label.style.overflow = "hidden";
-      label.style.textOverflow = "ellipsis";
-
-      col.appendChild(bar);
-      col.appendChild(label);
-      chart.appendChild(col);
-    }
-
-    container.appendChild(chart);
-  }
-
-  // =========================================================
-  // 4) Parse merged CSV stats for visuals
-  // =========================================================
-  function parseCsv(text) {
-    const rows = [];
-    let row = [];
-    let cur = "";
-    let inQ = false;
-
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
-      const next = text[i + 1];
-
-      if (inQ) {
-        if (ch === '"' && next === '"') {
-          cur += '"';
-          i++;
-        } else if (ch === '"') {
-          inQ = false;
-        } else {
-          cur += ch;
-        }
-      } else {
-        if (ch === '"') {
-          inQ = true;
-        } else if (ch === ",") {
-          row.push(cur);
-          cur = "";
-        } else if (ch === "\n") {
-          row.push(cur);
-          rows.push(row);
-          row = [];
-          cur = "";
-        } else if (ch === "\r") {
-          // ignore
-        } else {
-          cur += ch;
-        }
-      }
-    }
-    if (cur.length > 0 || row.length > 0) {
-      row.push(cur);
-      rows.push(row);
-    }
-    return rows;
-  }
-
-  function rowsToObjects(rows) {
-    if (!rows || rows.length === 0) return [];
-    const header = rows[0].map(h => String(h || "").trim());
-    const out = [];
-    for (let i = 1; i < rows.length; i++) {
-      const r = rows[i];
-      const obj = {};
-      for (let j = 0; j < header.length; j++) {
-        obj[header[j]] = r[j] ?? "";
-      }
-      out.push(obj);
-    }
-    return out;
-  }
-
-  function normalizeMergedRow(obj) {
-    const project = String(obj.project || obj.Project || obj.PROJECT || "").trim();
-    const dateRaw = obj.work_date || obj.date || obj.workDate || obj.workDateISO || obj.workdate || "";
-    const d = parseDateish(dateRaw);
-    const work_date = d ? isoDate(d) : String(dateRaw || "").trim();
-
-    const income = Number(obj.income ?? obj.Income ?? obj.amount ?? obj.Amount ?? 0) || 0;
-    const duration = Number(obj.duration_hours ?? obj.duration ?? obj.hours ?? obj.Hours ?? 0) || 0;
-
-    return { work_date, project, income, duration };
-  }
-
-  function buildQuickStatsTextFromMergedCsv(csvText) {
-    const rows = parseCsv(csvText);
-    const objs = rowsToObjects(rows);
-
-    const normalized = objs
-      .map(normalizeMergedRow)
-      .filter(r => r.project && r.work_date);
-
-    const totalIncome = sum(normalized.map(r => r.income));
-    const totalHours = sum(normalized.map(r => r.duration));
-    const ratio = totalHours > 0 ? (totalIncome / totalHours) : 0;
-
-    const byProject = new Map();
-    for (const r of normalized) {
-      if (!byProject.has(r.project)) byProject.set(r.project, { income: 0, hours: 0 });
-      const rec = byProject.get(r.project);
-      rec.income += r.income;
-      rec.hours += r.duration;
-    }
-
-    const lines = [];
-    lines.push(`Total income: £${fmtMoney(totalIncome)}`);
-    lines.push(`Total duration: ${fmtHours(totalHours)}`);
-    lines.push(`Income / hour: £${fmtRatio(ratio)}`);
-    lines.push("");
-    lines.push("Project\tTotal income\tTotal duration\tIncome / hour");
-
-    const projectsSorted = Array.from(byProject.entries())
-      .sort((a, b) => (b[1].income - a[1].income) || (b[1].hours - a[1].hours) || a[0].localeCompare(b[0]));
-
-    for (const [name, rec] of projectsSorted) {
-      const pRatio = rec.hours > 0 ? (rec.income / rec.hours) : 0;
-      lines.push(`${name}\t£${fmtMoney(rec.income)}\t${fmtHours(rec.hours)}\t£${fmtRatio(pRatio)}`);
-    }
-
-    return lines.join("\n");
-  }
-
-
-  function buildDailyProjectSeries(objs, group = "day") {
-    const rows = objs
-      .map(normalizeMergedRow)
-      .filter(r => r.project && r.work_date);
-
-    function keyForDate(iso) {
-      const d = parseDateish(iso);
-      if (!d) return iso;
-      if (group === "month") {
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      }
-      if (group === "week") {
-        const dt = new Date(d);
-        const day = (dt.getDay() + 6) % 7; // Monday=0
-        dt.setDate(dt.getDate() - day);
-        const y = dt.getFullYear();
-        const m = String(dt.getMonth() + 1).padStart(2, "0");
-        const dd = String(dt.getDate()).padStart(2, "0");
-        return `${y}-W${m}${dd}`;
-      }
-      return isoDate(d);
-    }
-
-    const projectNames = uniq(rows.map(r => r.project)).sort((a, b) => a.localeCompare(b));
-
-    const byKey = new Map();
-    for (const r of rows) {
-      const k = keyForDate(r.work_date);
-      if (!byKey.has(k)) byKey.set(k, { key: k, valuesIncome: {}, valuesHours: {}, valuesRatio: {}, totalIncome: 0, totalHours: 0 });
-      const rec = byKey.get(k);
-      rec.valuesIncome[r.project] = (rec.valuesIncome[r.project] || 0) + r.income;
-      rec.valuesHours[r.project] = (rec.valuesHours[r.project] || 0) + r.duration;
-      rec.totalIncome += r.income;
-      rec.totalHours += r.duration;
-    }
-
-    for (const rec of byKey.values()) {
-      for (const p of projectNames) {
-        const inc = Number(rec.valuesIncome[p] || 0);
-        const hrs = Number(rec.valuesHours[p] || 0);
-        rec.valuesRatio[p] = hrs > 0 ? (inc / hrs) : 0;
-      }
-      rec.totalRatio = rec.totalHours > 0 ? (rec.totalIncome / rec.totalHours) : 0;
-    }
-
-    const sorted = Array.from(byKey.values()).sort((a, b) => String(a.key).localeCompare(String(b.key)));
-    return { projectNames, buckets: sorted };
-  }
-
-  // =========================================================
-  // 5) Auth UI bar + modal
-  // =========================================================
-  function ensureAuthBar() {
-    const workbench = document.querySelector(".aw-workbench");
-    if (!workbench) return null;
-
-    const existing = workbench.parentElement?.querySelector("#owAuthBar");
-    if (existing) { try { existing.remove(); } catch (e) {} }
-
-    const bar = document.createElement("div");
-    bar.id = "owAuthBar";
+    const bar = createEl("div", { className: "aw-bar" });
+    bar.style.width = "100%";
+    bar.style.height = `${Math.round((Number(d.total) || 0) / maxTotal * 140)}px`;
+    bar.style.borderRadius = "12px";
+    bar.style.overflow = "hidden";
     bar.style.display = "flex";
-    bar.style.justifyContent = "space-between";
-    bar.style.alignItems = "center";
-    bar.style.gap = "0.75rem";
-    bar.style.flexWrap = "wrap";
-    bar.style.margin = "0 0 0.9rem 0";
+    bar.style.flexDirection = "column-reverse";
+    bar.style.boxShadow = "0 10px 22px rgba(15,31,23,0.10)";
+    bar.style.border = "1px solid rgba(15,31,23,0.10)";
+    bar.title = `${d.key}\nTotal: ${fmtMoney(d.total)}`;
 
-    const left = document.createElement("div");
-    left.style.display = "flex";
-    left.style.gap = "0.55rem";
-    left.style.flexWrap = "wrap";
-    left.style.alignItems = "center";
+    for (const p of projectNames) {
+      const v = Number(d.values?.[p]) || 0;
+      if (v <= 0) continue;
+      const seg = createEl("div", { className: "aw-bar-seg" });
+      const pct = (d.total > 0) ? (v / d.total) : 0;
+      seg.style.height = `${pct * 100}%`;
+      seg.style.background = colorForProject(p, projectNames);
+      seg.style.opacity = "0.85";
+      seg.title = `${p}: ${valueKey === "ratio" ? fmtRatio(v) : (valueKey === "hours" ? fmtHours(v) : fmtMoney(v))}`;
+      bar.appendChild(seg);
+    }
 
-    const right = document.createElement("div");
-    right.style.display = "flex";
-    right.style.gap = "0.55rem";
-    right.style.flexWrap = "wrap";
-    right.style.alignItems = "center";
+    const label = createEl("div", { className: "aw-bar-label", textContent: d.key });
+    label.style.fontSize = "0.8rem";
+    label.style.textAlign = "center";
+    label.style.color = "rgba(15,31,23,0.62)";
+    label.style.whiteSpace = "nowrap";
+    label.style.overflow = "hidden";
+    label.style.textOverflow = "ellipsis";
 
-    const status = document.createElement("div");
-    status.id = "owAuthStatus";
-    status.style.fontWeight = "700";
-    status.style.color = "rgba(15,31,23,0.75)";
-    status.style.display = "inline-flex";
-    status.style.alignItems = "center";
-    status.style.gap = "0.5rem";
+    col.appendChild(bar);
+    col.appendChild(label);
+    chart.appendChild(col);
+  }
 
-    const btnLogin = document.createElement("button");
-    btnLogin.type = "button";
-    stylePillButton(btnLogin);
-    btnLogin.textContent = "Login";
+  container.appendChild(chart);
+}
 
-    const btnRegister = document.createElement("button");
-    btnRegister.type = "button";
-    stylePillButton(btnRegister);
-    btnRegister.textContent = "Register";
+// =========================================================
+// 4) Parse merged CSV stats for visuals
+// =========================================================
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cur = "";
+  let inQ = false;
 
-    const btnForgot = document.createElement("button");
-    btnForgot.type = "button";
-    stylePillButton(btnForgot);
-    btnForgot.textContent = "Forgot password";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
 
-    const btnLogout = document.createElement("button");
-    btnLogout.type = "button";
-    stylePillButton(btnLogout);
-    btnLogout.textContent = "Logout";
-
-    // NEW: delete account button (danger)
-    const btnDelete = document.createElement("button");
-    btnDelete.type = "button";
-    stylePillDanger(btnDelete);
-    btnDelete.textContent = "Delete account";
-
-    const hint = document.createElement("span");
-    hint.style.fontSize = "0.95rem";
-    hint.style.color = "rgba(15,31,23,0.62)";
-    hint.textContent = "Sign in to securely weave your data.";
-
-    left.appendChild(status);
-    left.appendChild(hint);
-
-    right.appendChild(btnLogin);
-    right.appendChild(btnRegister);
-    right.appendChild(btnForgot);
-    right.appendChild(btnLogout);
-    right.appendChild(btnDelete);
-
-    bar.appendChild(left);
-    bar.appendChild(right);
-
-    workbench.parentElement?.insertBefore(bar, workbench);
-
-    // Modal
-    const modal = document.createElement("div");
-    modal.id = "owAuthModal";
-    modal.style.position = "fixed";
-    modal.style.inset = "0";
-    modal.style.background = "rgba(0,0,0,0.35)";
-    modal.style.display = "none";
-    modal.style.alignItems = "center";
-    modal.style.justifyContent = "center";
-    modal.style.zIndex = "9999";
-    modal.style.padding = "24px";
-
-    const panel = document.createElement("div");
-    panel.style.width = "min(520px, 92vw)";
-    panel.style.background = "rgba(255,255,255,0.98)";
-    panel.style.border = "1px solid rgba(15,31,23,0.14)";
-    panel.style.borderRadius = "18px";
-    panel.style.boxShadow = "0 18px 40px rgba(0,0,0,0.15)";
-    panel.style.padding = "18px";
-
-    const head = document.createElement("div");
-    head.style.display = "flex";
-    head.style.justifyContent = "space-between";
-    head.style.alignItems = "center";
-    head.style.gap = "12px";
-    head.style.marginBottom = "10px";
-
-    const title = document.createElement("div");
-    title.style.fontSize = "1.1rem";
-    title.style.fontWeight = "800";
-    title.style.color = "rgba(15,31,23,0.92)";
-    title.textContent = "Account";
-
-    const close = document.createElement("button");
-    close.type = "button";
-    close.textContent = "×";
-    close.style.border = "none";
-    close.style.background = "transparent";
-    close.style.fontSize = "1.6rem";
-    close.style.lineHeight = "1";
-    close.style.cursor = "pointer";
-    close.style.color = "rgba(15,31,23,0.70)";
-
-    head.appendChild(title);
-    head.appendChild(close);
-
-    const msg = document.createElement("div");
-    msg.style.fontSize = "0.95rem";
-    msg.style.color = "rgba(15,31,23,0.70)";
-    msg.style.margin = "6px 0 12px 0";
-
-    const body = document.createElement("div");
-
-    panel.appendChild(head);
-    panel.appendChild(msg);
-    panel.appendChild(body);
-
-    modal.appendChild(panel);
-    document.body.appendChild(modal);
-
-    function openModal(mode, opts = {}) {
-      modal.style.display = "flex";
-      msg.textContent = "";
-      body.innerHTML = "";
-
-      const email = document.createElement("input");
-      email.type = "email";
-      email.placeholder = "Email";
-      email.value = (opts.email ?? getAuthEmail());
-      if (opts.lockEmail) {
-        email.disabled = true;
-        email.style.opacity = "0.85";
-        email.style.cursor = "not-allowed";
+    if (inQ) {
+      if (ch === '"' && next === '"') {
+        cur += '"';
+        i++;
+      } else if (ch === '"') {
+        inQ = false;
+      } else {
+        cur += ch;
       }
-      email.style.width = "100%";
-      email.style.height = "42px";
-      email.style.borderRadius = "12px";
-      email.style.border = "1px solid rgba(15,31,23,0.14)";
-      email.style.padding = "0 12px";
-      email.style.marginBottom = "10px";
-      email.style.background = "white";
+    } else {
+      if (ch === '"') {
+        inQ = true;
+      } else if (ch === ",") {
+        row.push(cur);
+        cur = "";
+      } else if (ch === "\n") {
+        row.push(cur);
+        rows.push(row);
+        row = [];
+        cur = "";
+      } else if (ch === "\r") {
+        // ignore
+      } else {
+        cur += ch;
+      }
+    }
+  }
+  if (cur.length > 0 || row.length > 0) {
+    row.push(cur);
+    rows.push(row);
+  }
+  return rows;
+}
 
-      const password = document.createElement("input");
-      password.type = "password";
-      password.placeholder = (mode === "reset") ? "New password" : "Password";
-      password.style.width = "100%";
-      password.style.height = "42px";
-      password.style.borderRadius = "12px";
-      password.style.border = "1px solid rgba(15,31,23,0.14)";
-      password.style.padding = "0 12px";
-      password.style.marginBottom = "10px";
-      password.style.background = "white";
+function rowsToObjects(rows) {
+  if (!rows || rows.length === 0) return [];
+  const header = rows[0].map(h => String(h || "").trim());
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const obj = {};
+    for (let j = 0; j < header.length; j++) {
+      obj[header[j]] = r[j] ?? "";
+    }
+    out.push(obj);
+  }
+  return out;
+}
 
-      const password2 = document.createElement("input");
-      password2.type = "password";
-      password2.placeholder = "Confirm password";
-      password2.style.width = "100%";
-      password2.style.height = "42px";
-      password2.style.borderRadius = "12px";
-      password2.style.border = "1px solid rgba(15,31,23,0.14)";
-      password2.style.padding = "0 12px";
-      password2.style.marginBottom = "10px";
-      password2.style.background = "white";
+function normalizeMergedRow(obj) {
+  const project = String(obj.project || obj.Project || obj.PROJECT || "").trim();
+  const dateRaw = obj.work_date || obj.date || obj.workDate || obj.workDateISO || obj.workdate || "";
+  const d = parseDateish(dateRaw);
+  const work_date = d ? isoDate(d) : String(dateRaw || "").trim();
 
-      const confirmText = document.createElement("input");
-      confirmText.type = "text";
-      confirmText.placeholder = 'Type DELETE to confirm';
-      confirmText.style.width = "100%";
-      confirmText.style.height = "42px";
-      confirmText.style.borderRadius = "12px";
-      confirmText.style.border = "1px solid rgba(15,31,23,0.14)";
-      confirmText.style.padding = "0 12px";
-      confirmText.style.marginBottom = "10px";
-      confirmText.style.background = "white";
+  const income = Number(obj.income ?? obj.Income ?? obj.amount ?? obj.Amount ?? 0) || 0;
+  const duration = Number(obj.duration_hours ?? obj.duration ?? obj.hours ?? obj.Hours ?? 0) || 0;
 
-      const action = document.createElement("button");
-      action.type = "button";
-      stylePillButton(action);
+  return { work_date, project, income, duration };
+}
+
+function buildQuickStatsTextFromMergedCsv(csvText) {
+  const rows = parseCsv(csvText);
+  const objs = rowsToObjects(rows);
+
+  const normalized = objs
+    .map(normalizeMergedRow)
+    .filter(r => r.project && r.work_date);
+
+  const totalIncome = sum(normalized.map(r => r.income));
+  const totalHours = sum(normalized.map(r => r.duration));
+  const ratio = totalHours > 0 ? (totalIncome / totalHours) : 0;
+
+  const byProject = new Map();
+  for (const r of normalized) {
+    if (!byProject.has(r.project)) byProject.set(r.project, { income: 0, hours: 0 });
+    const rec = byProject.get(r.project);
+    rec.income += r.income;
+    rec.hours += r.duration;
+  }
+
+  const lines = [];
+  lines.push(`Total income: £${fmtMoney(totalIncome)}`);
+  lines.push(`Total duration: ${fmtHours(totalHours)}`);
+  lines.push(`Income / hour: £${fmtRatio(ratio)}`);
+  lines.push("");
+  lines.push("Project\tTotal income\tTotal duration\tIncome / hour");
+
+  const projectsSorted = Array.from(byProject.entries())
+    .sort((a, b) => (b[1].income - a[1].income) || (b[1].hours - a[1].hours) || a[0].localeCompare(b[0]));
+
+  for (const [name, rec] of projectsSorted) {
+    const pRatio = rec.hours > 0 ? (rec.income / rec.hours) : 0;
+    lines.push(`${name}\t£${fmtMoney(rec.income)}\t${fmtHours(rec.hours)}\t£${fmtRatio(pRatio)}`);
+  }
+
+  return lines.join("\n");
+}
+
+
+function buildDailyProjectSeries(objs, group = "day") {
+  const rows = objs
+    .map(normalizeMergedRow)
+    .filter(r => r.project && r.work_date);
+
+  function keyForDate(iso) {
+    const d = parseDateish(iso);
+    if (!d) return iso;
+    if (group === "month") {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    }
+    if (group === "week") {
+      const dt = new Date(d);
+      const day = (dt.getDay() + 6) % 7; // Monday=0
+      dt.setDate(dt.getDate() - day);
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, "0");
+      const dd = String(dt.getDate()).padStart(2, "0");
+      return `${y}-W${m}${dd}`;
+    }
+    return isoDate(d);
+  }
+
+  const projectNames = uniq(rows.map(r => r.project)).sort((a, b) => a.localeCompare(b));
+
+  const byKey = new Map();
+  for (const r of rows) {
+    const k = keyForDate(r.work_date);
+    if (!byKey.has(k)) byKey.set(k, { key: k, valuesIncome: {}, valuesHours: {}, valuesRatio: {}, totalIncome: 0, totalHours: 0 });
+    const rec = byKey.get(k);
+    rec.valuesIncome[r.project] = (rec.valuesIncome[r.project] || 0) + r.income;
+    rec.valuesHours[r.project] = (rec.valuesHours[r.project] || 0) + r.duration;
+    rec.totalIncome += r.income;
+    rec.totalHours += r.duration;
+  }
+
+  for (const rec of byKey.values()) {
+    for (const p of projectNames) {
+      const inc = Number(rec.valuesIncome[p] || 0);
+      const hrs = Number(rec.valuesHours[p] || 0);
+      rec.valuesRatio[p] = hrs > 0 ? (inc / hrs) : 0;
+    }
+    rec.totalRatio = rec.totalHours > 0 ? (rec.totalIncome / rec.totalHours) : 0;
+  }
+
+  const sorted = Array.from(byKey.values()).sort((a, b) => String(a.key).localeCompare(String(b.key)));
+  return { projectNames, buckets: sorted };
+}
+
+// =========================================================
+// 5) Auth UI bar + modal
+// =========================================================
+function ensureAuthBar() {
+  const workbench = document.querySelector(".aw-workbench");
+  if (!workbench) return null;
+
+  const existing = workbench.parentElement?.querySelector("#owAuthBar");
+  if (existing) { try { existing.remove(); } catch (e) {} }
+
+  const bar = document.createElement("div");
+  bar.id = "owAuthBar";
+  bar.style.display = "flex";
+  bar.style.justifyContent = "space-between";
+  bar.style.alignItems = "center";
+  bar.style.gap = "0.75rem";
+  bar.style.flexWrap = "wrap";
+  bar.style.margin = "0 0 0.9rem 0";
+
+  const left = document.createElement("div");
+  left.style.display = "flex";
+  left.style.gap = "0.55rem";
+  left.style.flexWrap = "wrap";
+  left.style.alignItems = "center";
+
+  const right = document.createElement("div");
+  right.style.display = "flex";
+  right.style.gap = "0.55rem";
+  right.style.flexWrap = "wrap";
+  right.style.alignItems = "center";
+
+  const status = document.createElement("div");
+  status.id = "owAuthStatus";
+  status.style.fontWeight = "700";
+  status.style.color = "rgba(15,31,23,0.75)";
+  status.style.display = "inline-flex";
+  status.style.alignItems = "center";
+  status.style.gap = "0.5rem";
+
+  const btnLogin = document.createElement("button");
+  btnLogin.type = "button";
+  stylePillButton(btnLogin);
+  btnLogin.textContent = "Login";
+
+  const btnRegister = document.createElement("button");
+  btnRegister.type = "button";
+  stylePillButton(btnRegister);
+  btnRegister.textContent = "Register";
+
+  const btnForgot = document.createElement("button");
+  btnForgot.type = "button";
+  stylePillButton(btnForgot);
+  btnForgot.textContent = "Forgot password";
+
+  const btnLogout = document.createElement("button");
+  btnLogout.type = "button";
+  stylePillButton(btnLogout);
+  btnLogout.textContent = "Logout";
+
+  // NEW: delete account button (danger)
+  const btnDelete = document.createElement("button");
+  btnDelete.type = "button";
+  stylePillDanger(btnDelete);
+  btnDelete.textContent = "Delete account";
+
+  const hint = document.createElement("span");
+  hint.style.fontSize = "0.95rem";
+  hint.style.color = "rgba(15,31,23,0.62)";
+  hint.textContent = "Sign in to securely weave your data.";
+
+  left.appendChild(status);
+  left.appendChild(hint);
+
+  right.appendChild(btnLogin);
+  right.appendChild(btnRegister);
+  right.appendChild(btnForgot);
+  right.appendChild(btnLogout);
+  right.appendChild(btnDelete);
+
+  bar.appendChild(left);
+  bar.appendChild(right);
+
+  workbench.parentElement?.insertBefore(bar, workbench);
+
+  // Modal
+  const modal = document.createElement("div");
+  modal.id = "owAuthModal";
+  modal.style.position = "fixed";
+  modal.style.inset = "0";
+  modal.style.background = "rgba(0,0,0,0.35)";
+  modal.style.display = "none";
+  modal.style.alignItems = "center";
+  modal.style.justifyContent = "center";
+  modal.style.zIndex = "9999";
+  modal.style.padding = "24px";
+
+  const panel = document.createElement("div");
+  panel.style.width = "min(520px, 92vw)";
+  panel.style.background = "rgba(255,255,255,0.98)";
+  panel.style.border = "1px solid rgba(15,31,23,0.14)";
+  panel.style.borderRadius = "18px";
+  panel.style.boxShadow = "0 18px 40px rgba(0,0,0,0.15)";
+  panel.style.padding = "18px";
+
+  const head = document.createElement("div");
+  head.style.display = "flex";
+  head.style.justifyContent = "space-between";
+  head.style.alignItems = "center";
+  head.style.gap = "12px";
+  head.style.marginBottom = "10px";
+
+  const title = document.createElement("div");
+  title.style.fontSize = "1.1rem";
+  title.style.fontWeight = "800";
+  title.style.color = "rgba(15,31,23,0.92)";
+  title.textContent = "Account";
+
+  const close = document.createElement("button");
+  close.type = "button";
+  close.textContent = "×";
+  close.style.border = "none";
+  close.style.background = "transparent";
+  close.style.fontSize = "1.6rem";
+  close.style.lineHeight = "1";
+  close.style.cursor = "pointer";
+  close.style.color = "rgba(15,31,23,0.70)";
+
+  head.appendChild(title);
+  head.appendChild(close);
+
+  const msg = document.createElement("div");
+  msg.style.fontSize = "0.95rem";
+  msg.style.color = "rgba(15,31,23,0.70)";
+  msg.style.margin = "6px 0 12px 0";
+
+  const body = document.createElement("div");
+
+  panel.appendChild(head);
+  panel.appendChild(msg);
+  panel.appendChild(body);
+
+  modal.appendChild(panel);
+  document.body.appendChild(modal);
+
+  function openModal(mode, opts = {}) {
+    modal.style.display = "flex";
+    msg.textContent = "";
+    body.innerHTML = "";
+
+    const email = document.createElement("input");
+    email.type = "email";
+    email.placeholder = "Email";
+    email.value = (opts.email ?? getAuthEmail());
+    if (opts.lockEmail) {
+      email.disabled = true;
+      email.style.opacity = "0.85";
+      email.style.cursor = "not-allowed";
+    }
+    email.style.width = "100%";
+    email.style.height = "42px";
+    email.style.borderRadius = "12px";
+    email.style.border = "1px solid rgba(15,31,23,0.14)";
+    email.style.padding = "0 12px";
+    email.style.marginBottom = "10px";
+    email.style.background = "white";
+
+    const password = document.createElement("input");
+    password.type = "password";
+    password.placeholder = (mode === "reset") ? "New password" : "Password";
+    password.style.width = "100%";
+    password.style.height = "42px";
+    password.style.borderRadius = "12px";
+    password.style.border = "1px solid rgba(15,31,23,0.14)";
+    password.style.padding = "0 12px";
+    password.style.marginBottom = "10px";
+    password.style.background = "white";
+
+    const password2 = document.createElement("input");
+    password2.type = "password";
+    password2.placeholder = "Confirm password";
+    password2.style.width = "100%";
+    password2.style.height = "42px";
+    password2.style.borderRadius = "12px";
+    password2.style.border = "1px solid rgba(15,31,23,0.14)";
+    password2.style.padding = "0 12px";
+    password2.style.marginBottom = "10px";
+    password2.style.background = "white";
+
+    const confirmText = document.createElement("input");
+    confirmText.type = "text";
+    confirmText.placeholder = 'Type DELETE to confirm';
+    confirmText.style.width = "100%";
+    confirmText.style.height = "42px";
+    confirmText.style.borderRadius = "12px";
+    confirmText.style.border = "1px solid rgba(15,31,23,0.14)";
+    confirmText.style.padding = "0 12px";
+    confirmText.style.marginBottom = "10px";
+    confirmText.style.background = "white";
+
+    const action = document.createElement("button");
+    action.type = "button";
+    stylePillButton(action);
+    action.style.height = "42px";
+    action.style.width = "100%";
+    action.style.justifyContent = "center";
+
+    const resend = document.createElement("button");
+    resend.type = "button";
+    stylePillButton(resend);
+    resend.style.height = "42px";
+    resend.style.width = "100%";
+    resend.style.justifyContent = "center";
+    resend.style.marginTop = "10px";
+    resend.textContent = "Resend verification link";
+    resend.style.display = "none";
+
+    // Mode setup
+    if (mode === "login") {
+      title.textContent = "Login";
+      action.textContent = "Login";
+      msg.textContent = "Tip: verify your email first (check inbox).";
+      password2.style.display = "none";
+      confirmText.style.display = "none";
+    } else if (mode === "register") {
+      title.textContent = "Register";
+      action.textContent = "Create account";
+      msg.textContent = "We’ll email you a verification link.";
+      confirmText.style.display = "none";
+    } else if (mode === "forgot") {
+      title.textContent = "Forgot password";
+      action.textContent = "Send reset link";
+      msg.textContent = "We’ll email you a reset link (if the account exists).";
+      password.style.display = "none";
+      password2.style.display = "none";
+      confirmText.style.display = "none";
+      resend.style.display = "inline-flex";
+    } else if (mode === "reset") {
+      title.textContent = "Reset password";
+      action.textContent = "Set new password";
+      msg.textContent = "Choose a new password (min 8 characters).";
+      confirmText.style.display = "none";
+    } else if (mode === "verify") {
+      title.textContent = "Verify email";
+      action.textContent = "Verify email";
+      msg.textContent = "Confirming your email.";
+      password.style.display = "none";
+      password2.style.display = "none";
+      confirmText.style.display = "none";
+    } else if (mode === "delete") {
+      title.textContent = "Delete account";
+      stylePillDanger(action);
       action.style.height = "42px";
       action.style.width = "100%";
       action.style.justifyContent = "center";
+      action.textContent = "DELETE MY ACCOUNT";
+      msg.textContent = "This action cannot be undone. Confirm your password and type DELETE.";
+      // email is shown but locked (for clarity)
+      email.disabled = true;
+      password2.style.display = "none";
+    } else {
+      title.textContent = "Account";
+      password2.style.display = "none";
+      confirmText.style.display = "none";
+    }
 
-      const resend = document.createElement("button");
-      resend.type = "button";
-      stylePillButton(resend);
-      resend.style.height = "42px";
-      resend.style.width = "100%";
-      resend.style.justifyContent = "center";
-      resend.style.marginTop = "10px";
-      resend.textContent = "Resend verification link";
-      resend.style.display = "none";
+    // Body layout
+    if (mode === "verify") {
+      const note = document.createElement("div");
+      note.style.fontSize = "0.95rem";
+      note.style.lineHeight = "1.35";
+      note.style.marginBottom = "10px";
+      note.textContent = "Confirming your email…";
+      body.appendChild(note);
+      if (opts.email) body.appendChild(email);
+      body.appendChild(action);
+    } else if (mode === "delete") {
+      body.appendChild(email);
+      body.appendChild(password);
+      body.appendChild(confirmText);
+      body.appendChild(action);
+    } else {
+      body.appendChild(email);
+      body.appendChild(password);
+      body.appendChild(password2);
+      body.appendChild(action);
+      if (mode === "forgot") body.appendChild(resend);
+    }
 
-      // Mode setup
-      if (mode === "login") {
-        title.textContent = "Login";
-        action.textContent = "Login";
-        msg.textContent = "Tip: verify your email first (check inbox).";
-        password2.style.display = "none";
-        confirmText.style.display = "none";
-      } else if (mode === "register") {
-        title.textContent = "Register";
-        action.textContent = "Create account";
-        msg.textContent = "We’ll email you a verification link.";
-        confirmText.style.display = "none";
-      } else if (mode === "forgot") {
-        title.textContent = "Forgot password";
-        action.textContent = "Send reset link";
-        msg.textContent = "We’ll email you a reset link (if the account exists).";
-        password.style.display = "none";
-        password2.style.display = "none";
-        confirmText.style.display = "none";
-        resend.style.display = "inline-flex";
-      } else if (mode === "reset") {
-        title.textContent = "Reset password";
-        action.textContent = "Set new password";
-        msg.textContent = "Choose a new password (min 8 characters).";
-        confirmText.style.display = "none";
-      } else if (mode === "verify") {
-        title.textContent = "Verify email";
-        action.textContent = "Verify email";
-        msg.textContent = "Confirming your email.";
-        password.style.display = "none";
-        password2.style.display = "none";
-        confirmText.style.display = "none";
-      } else if (mode === "delete") {
-        title.textContent = "Delete account";
-        stylePillDanger(action);
-        action.style.height = "42px";
-        action.style.width = "100%";
-        action.style.justifyContent = "center";
-        action.textContent = "DELETE MY ACCOUNT";
-        msg.textContent = "This action cannot be undone. Confirm your password and type DELETE.";
-        // email is shown but locked (for clarity)
-        email.disabled = true;
-        password2.style.display = "none";
-      } else {
-        title.textContent = "Account";
-        password2.style.display = "none";
-        confirmText.style.display = "none";
+    // Resend handler (scoped)
+    resend.addEventListener("click", async () => {
+      const em = email.value.trim();
+      if (!em) {
+        msg.textContent = "Please enter your email.";
+        return;
+      }
+      try {
+        resend.disabled = true;
+        resend.style.opacity = "0.7";
+        await authResendVerify(em);
+        msg.textContent = "Verification email sent (if the account exists).";
+      } catch (e) {
+        msg.textContent = e?.message ? String(e.message) : String(e);
+      } finally {
+        resend.disabled = false;
+        resend.style.opacity = "1";
+      }
+    });
+
+    action.addEventListener("click", async () => {
+      const em = email.value.trim();
+      const pw = password.value;
+      const pw2 = password2.value;
+      const linkToken = (opts.token || "").trim();
+
+      if (!em) {
+        msg.textContent = "Please enter your email.";
+        return;
       }
 
-      // Body layout
-      if (mode === "verify") {
-        const note = document.createElement("div");
-        note.style.fontSize = "0.95rem";
-        note.style.lineHeight = "1.35";
-        note.style.marginBottom = "10px";
-        note.textContent = "Confirming your email…";
-        body.appendChild(note);
-        if (opts.email) body.appendChild(email);
-        body.appendChild(action);
-      } else if (mode === "delete") {
-        body.appendChild(email);
-        body.appendChild(password);
-        body.appendChild(confirmText);
-        body.appendChild(action);
-      } else {
-        body.appendChild(email);
-        body.appendChild(password);
-        body.appendChild(password2);
-        body.appendChild(action);
-        if (mode === "forgot") body.appendChild(resend);
-      }
+      try {
+        action.disabled = true;
+        action.style.opacity = "0.7";
 
-      // Resend handler (scoped)
-      resend.addEventListener("click", async () => {
-        const em = email.value.trim();
-        if (!em) {
-          msg.textContent = "Please enter your email.";
-          return;
-        }
-        try {
-          resend.disabled = true;
-          resend.style.opacity = "0.7";
-          await authResendVerify(em);
-          msg.textContent = "Verification email sent (if the account exists).";
-        } catch (e) {
-          msg.textContent = e?.message ? String(e.message) : String(e);
-        } finally {
-          resend.disabled = false;
-          resend.style.opacity = "1";
-        }
-      });
+        if (mode === "login") {
+          const out = await authLogin(em, pw);
+          const token =
+            out?.access_token ||
+            out?.token ||
+            out?.accessToken ||
+            out?.jwt ||
+            "";
 
-      action.addEventListener("click", async () => {
-        const em = email.value.trim();
-        const pw = password.value;
-        const pw2 = password2.value;
-        const linkToken = (opts.token || "").trim();
-
-        if (!em) {
-          msg.textContent = "Please enter your email.";
-          return;
-        }
-
-        try {
-          action.disabled = true;
-          action.style.opacity = "0.7";
-
-          if (mode === "login") {
-            const out = await authLogin(em, pw);
-            const token =
-              out?.access_token ||
-              out?.token ||
-              out?.accessToken ||
-              out?.jwt ||
-              "";
-
-            if (!token) {
-              throw new Error("Login succeeded but token missing in response");
-            }
-
-            setAuthToken(token, em);
-            msg.textContent = "Logged in ✔";
-            syncAuthUi();
-            setTimeout(closeModal, 450);
-
-          } else if (mode === "register") {
-            if (!pw || pw.length < 8) {
-              msg.textContent = "Password must be at least 8 characters.";
-              return;
-            }
-            if (pw !== pw2) {
-              msg.textContent = "Passwords do not match.";
-              return;
-            }
-            await authRegister(em, pw);
-            msg.textContent = "Account created ✔ Check your email to verify.";
-            setTimeout(closeModal, 700);
-
-          } else if (mode === "forgot") {
-            await authForgot(em);
-            msg.textContent = "If that email exists, a reset link has been sent.";
-
-          } else if (mode === "reset") {
-            if (!linkToken) {
-              msg.textContent = "Reset token missing. Please open the link from your email again.";
-              return;
-            }
-            if (!pw || pw.length < 8) {
-              msg.textContent = "Password must be at least 8 characters.";
-              return;
-            }
-            if (pw !== pw2) {
-              msg.textContent = "Passwords do not match.";
-              return;
-            }
-            await authReset(em, linkToken, pw);
-            msg.textContent = "Password updated ✔ You can log in now.";
-            setTimeout(() => {
-              try { history.replaceState({}, "", window.location.pathname + window.location.hash); } catch (e) {}
-              closeModal();
-              openModal("login", { email: em });
-            }, 650);
-
-          } else if (mode === "verify") {
-            if (!opts.email || !linkToken) {
-              msg.textContent = "Verification link incomplete. Please open the link from your email again.";
-              return;
-            }
-            await authVerify(opts.email, linkToken);
-            msg.textContent = "Email verified ✔ You can log in now.";
-            setTimeout(() => {
-              try { history.replaceState({}, "", window.location.pathname + window.location.hash); } catch (e) {}
-              closeModal();
-              openModal("login", { email: opts.email });
-            }, 650);
-
-          } else if (mode === "delete") {
-            const c = String(confirmText.value || "").trim().toUpperCase();
-            if (c !== "DELETE") {
-              msg.textContent = 'Please type "DELETE" to confirm.';
-              return;
-            }
-            if (!pw) {
-              msg.textContent = "Please enter your password.";
-              return;
-            }
-
-            const deleteEmailInput = document.getElementById("delete-email");
-            const deletePasswordInput = document.getElementById("delete-password");
-            const deleteConfirmInput = document.getElementById("delete-confirm");
-
-            deleteForm.addEventListener("submit", async (e) => {
-              e.preventDefault();
-
-              try {
-                const email = deleteEmailInput.value.trim();
-                const password = deletePasswordInput.value;
-                const confirm = deleteConfirmInput.value;
-
-                await authDeleteAccount(email, password, confirm);
-
-                alert("Account deleted.");
-                clearAuthToken();
-                location.reload();
-              } catch (err) {
-                deleteError.textContent = err.message || "Delete failed";
-              }
-            });
-
-            // Clear session
-            clearAuthToken();
-            syncAuthUi();
-
-            msg.textContent = "Account deleted ✔";
-            setTimeout(closeModal, 650);
-
-          } else {
-            msg.textContent = "Unknown action.";
+          if (!token) {
+            throw new Error("Login succeeded but token missing in response");
           }
-        } catch (e) {
-          const emsg = e?.message ? String(e.message) : String(e);
-          msg.textContent = emsg;
 
-          if (mode === "login" && /verify|verification/i.test(emsg)) {
-            resend.style.display = "inline-flex";
+          setAuthToken(token, em);
+          msg.textContent = "Logged in ✔";
+          syncAuthUi();
+          setTimeout(closeModal, 450);
+
+        } else if (mode === "register") {
+          if (!pw || pw.length < 8) {
+            msg.textContent = "Password must be at least 8 characters.";
+            return;
           }
-        } finally {
-          action.disabled = false;
-          action.style.opacity = "1";
+          if (pw !== pw2) {
+            msg.textContent = "Passwords do not match.";
+            return;
+          }
+          await authRegister(em, pw);
+          msg.textContent = "Account created ✔ Check your email to verify.";
+          setTimeout(closeModal, 700);
+
+        } else if (mode === "forgot") {
+          await authForgot(em);
+          msg.textContent = "If that email exists, a reset link has been sent.";
+
+        } else if (mode === "reset") {
+          if (!linkToken) {
+            msg.textContent = "Reset token missing. Please open the link from your email again.";
+            return;
+          }
+          if (!pw || pw.length < 8) {
+            msg.textContent = "Password must be at least 8 characters.";
+            return;
+          }
+          if (pw !== pw2) {
+            msg.textContent = "Passwords do not match.";
+            return;
+          }
+          await authReset(em, linkToken, pw);
+          msg.textContent = "Password updated ✔ You can log in now.";
+          setTimeout(() => {
+            try { history.replaceState({}, "", window.location.pathname + window.location.hash); } catch (e) {}
+            closeModal();
+            openModal("login", { email: em });
+          }, 650);
+
+        } else if (mode === "verify") {
+          if (!opts.email || !linkToken) {
+            msg.textContent = "Verification link incomplete. Please open the link from your email again.";
+            return;
+          }
+          await authVerify(opts.email, linkToken);
+          msg.textContent = "Email verified ✔ You can log in now.";
+          setTimeout(() => {
+            try { history.replaceState({}, "", window.location.pathname + window.location.hash); } catch (e) {}
+            closeModal();
+            openModal("login", { email: opts.email });
+          }, 650);
+
+        } else if (mode === "delete") {
+          const c = String(confirmText.value || "").trim().toUpperCase();
+          if (c !== "DELETE") {
+            msg.textContent = 'Please type "DELETE" to confirm.';
+            return;
+          }
+          if (!pw) {
+            msg.textContent = "Please enter your password.";
+            return;
+          }
+
+          const deleteEmailInput = document.getElementById("delete-email");
+          const deletePasswordInput = document.getElementById("delete-password");
+          const deleteConfirmInput = document.getElementById("delete-confirm");
+
+          deleteForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            try {
+              const email = deleteEmailInput.value.trim();
+              const password = deletePasswordInput.value;
+              const confirm = deleteConfirmInput.value;
+
+              await authDeleteAccount(email, password, confirm);
+
+              alert("Account deleted.");
+              clearAuthToken();
+              location.reload();
+            } catch (err) {
+              deleteError.textContent = err.message || "Delete failed";
+            }
+          });
+
+          // Clear session
+          clearAuthToken();
+          syncAuthUi();
+
+          msg.textContent = "Account deleted ✔";
+          setTimeout(closeModal, 650);
+
+        } else {
+          msg.textContent = "Unknown action.";
         }
-      });
+      } catch (e) {
+        const emsg = e?.message ? String(e.message) : String(e);
+        msg.textContent = emsg;
 
-      if (mode === "verify" && opts.token && opts.email) {
-        setTimeout(() => action.click(), 50);
+        if (mode === "login" && /verify|verification/i.test(emsg)) {
+          resend.style.display = "inline-flex";
+        }
+      } finally {
+        action.disabled = false;
+        action.style.opacity = "1";
       }
-    }
-
-    function closeModal() {
-      modal.style.display = "none";
-    }
-
-    close.addEventListener("click", closeModal);
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) closeModal();
     });
 
-    function syncAuthUi() {
-      const token = getAuthToken();
-      const email = getAuthEmail();
-      const signedIn = Boolean(token);
-
-      if (!signedIn) {
-        // optional: also clear email so UI doesn't lie
-        // localStorage.removeItem(AUTH_EMAIL_KEY);
-      }
-      const authed = !!token;
-
-      status.textContent = authed ? `Signed in: ${email || "account"}` : "Signed out";
-
-      btnLogin.style.display = authed ? "none" : "inline-flex";
-      btnRegister.style.display = authed ? "none" : "inline-flex";
-      btnForgot.style.display = authed ? "none" : "inline-flex";
-      btnLogout.style.display = authed ? "inline-flex" : "none";
-      btnDelete.style.display = authed ? "inline-flex" : "none";
-
-      hint.style.display = authed ? "none" : "inline";
+    if (mode === "verify" && opts.token && opts.email) {
+      setTimeout(() => action.click(), 50);
     }
-
-    btnLogin.addEventListener("click", () => openModal("login"));
-    btnRegister.addEventListener("click", () => openModal("register"));
-    btnForgot.addEventListener("click", () => openModal("forgot"));
-    btnLogout.addEventListener("click", () => {
-      clearAuthToken();
-      syncAuthUi();
-    });
-
-    // NEW: open delete modal (requires being logged in)
-    btnDelete.addEventListener("click", () => {
-      const em = getAuthEmail();
-      if (!getAuthToken()) return;
-      openModal("delete", { email: em, lockEmail: true });
-    });
-
-    function handleAuthLinkFromUrl() {
-      const url = new URL(window.location.href);
-      const mode = url.searchParams.get("mode") || "";
-      const email = url.searchParams.get("email") || "";
-      const token = url.searchParams.get("token") || "";
-
-      if (mode === "verify" && email && token) {
-        openModal("verify", { email, token, lockEmail: true });
-      }
-      if (mode === "reset" && email && token) {
-        openModal("reset", { email, token, lockEmail: true });
-      }
-    }
-
-    syncAuthUi();
-    handleAuthLinkFromUrl();
-
-    return bar;
   }
 
-  // =========================================================
-  // 6) Workbench wiring (upload + merge)
-  // =========================================================
-  function initWorkbench() {
-    const incomesFile = document.getElementById("incomesFile");
-    const entriesFile = document.getElementById("entriesFile");
-    const projectsFile = document.getElementById("projectsFile");
-    const runMergeBtn = document.getElementById("runMergeBtn");
-    const resetAllBtn = document.getElementById("resetAllBtn");
+  function closeModal() {
+    modal.style.display = "none";
+  }
 
-    const statusBox = document.getElementById("statusBox");
-    const previewMerged = document.getElementById("previewMerged");
-    const statsMerged = document.getElementById("statsMerged");
-    const downloadBtn = document.getElementById("downloadBtn");
+  close.addEventListener("click", closeModal);
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeModal();
+  });
 
-    function setBoxText(el, txt) {
-      if (!el) return;
-      if (typeof el.value === "string") el.value = txt;
-      else el.textContent = txt;
+  function syncAuthUi() {
+    const token = getAuthToken();
+    const email = getAuthEmail();
+    const signedIn = Boolean(token);
+
+    if (!signedIn) {
+      // optional: also clear email so UI doesn't lie
+      // localStorage.removeItem(AUTH_EMAIL_KEY);
     }
+    const authed = !!token;
 
-    if (!incomesFile || !entriesFile ||
-        !runMergeBtn || !statusBox || !previewMerged || !statsMerged || !downloadBtn) {
-      return;
-    }
+    status.textContent = authed ? `Signed in: ${email || "account"}` : "Signed out";
 
-    function setStatus(text) {
-      statusBox.textContent = text || "";
+    btnLogin.style.display = authed ? "none" : "inline-flex";
+    btnRegister.style.display = authed ? "none" : "inline-flex";
+    btnForgot.style.display = authed ? "none" : "inline-flex";
+    btnLogout.style.display = authed ? "inline-flex" : "none";
+    btnDelete.style.display = authed ? "inline-flex" : "none";
+
+    hint.style.display = authed ? "none" : "inline";
+  }
+
+  btnLogin.addEventListener("click", () => openModal("login"));
+  btnRegister.addEventListener("click", () => openModal("register"));
+  btnForgot.addEventListener("click", () => openModal("forgot"));
+  btnLogout.addEventListener("click", () => {
+    clearAuthToken();
+    syncAuthUi();
+  });
+
+  // NEW: open delete modal (requires being logged in)
+  btnDelete.addEventListener("click", () => {
+    const em = getAuthEmail();
+    if (!getAuthToken()) return;
+    openModal("delete", { email: em, lockEmail: true });
+  });
+
+  function handleAuthLinkFromUrl() {
+    const url = new URL(window.location.href);
+    const mode = url.searchParams.get("mode") || "";
+    const email = url.searchParams.get("email") || "";
+    const token = url.searchParams.get("token") || "";
+
+    if (mode === "verify" && email && token) {
+      openModal("verify", { email, token, lockEmail: true });
     }
+    if (mode === "reset" && email && token) {
+      openModal("reset", { email, token, lockEmail: true });
+    }
+  }
+
+  syncAuthUi();
+  handleAuthLinkFromUrl();
+
+  return bar;
+}
+
+// =========================================================
+// 6) Workbench wiring (upload + merge)
+// =========================================================
+function initWorkbench() {
+  const incomesFile = document.getElementById("incomesFile");
+  const entriesFile = document.getElementById("entriesFile");
+  const projectsFile = document.getElementById("projectsFile");
+  const runMergeBtn = document.getElementById("runMergeBtn");
+  const resetAllBtn = document.getElementById("resetAllBtn");
+
+  const statusBox = document.getElementById("statusBox");
+  const previewMerged = document.getElementById("previewMerged");
+  const statsMerged = document.getElementById("statsMerged");
+  const downloadBtn = document.getElementById("downloadBtn");
+
+  function setBoxText(el, txt) {
+    if (!el) return;
+    if (typeof el.value === "string") el.value = txt;
+    else el.textContent = txt;
+  }
+
+  if (!incomesFile || !entriesFile ||
+      !runMergeBtn || !statusBox || !previewMerged || !statsMerged || !downloadBtn) {
+    return;
+  }
+
+  function setStatus(text) {
+    statusBox.textContent = text || "";
+  }}
 
 
 
@@ -1149,121 +1148,120 @@
 // - Also auto-runs merge once samples are loaded (so the "See" panel isn't empty)
 // ---------------------------------------------------------
 async function fetchAsFile(url, filename) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Failed to load sample: ${url} (${res.status})`);
-  const blob = await res.blob();
-  return new File([blob], filename, { type: "text/csv" });
+const res = await fetch(url, { cache: "no-store" });
+if (!res.ok) throw new Error(`Failed to load sample: ${url} (${res.status})`);
+const blob = await res.blob();
+return new File([blob], filename, { type: "text/csv" });
 }
 
 function setInputFile(inputEl, file) {
-  if (!inputEl || !file) return;
-  const dt = new DataTransfer();
-  dt.items.add(file);
-  inputEl.files = dt.files;
+if (!inputEl || !file) return;
+const dt = new DataTransfer();
+dt.items.add(file);
+inputEl.files = dt.files;
 }
 
 async function tryFetchSample(filename, logicalName) {
-  // Try a few common paths:
-  // 1) Relative to current page
-  // 2) Absolute from site root
-  // 3) Relative to this script's directory (best for pages in subfolders)
-  const scriptUrl = (document.currentScript && document.currentScript.src) ? new URL(document.currentScript.src, document.baseURI) : null;
-  const scriptDir = scriptUrl ? scriptUrl.href.substring(0, scriptUrl.href.lastIndexOf("/") + 1) : "";
-  const candidates = [
-    `assets/technology/${filename}`,
-    `/assets/technology/${filename}`,
-    `${scriptDir}assets/technology/${filename}`,
-    `${scriptDir}../assets/technology/${filename}`,
-  ];
+// Try a few common paths:
+// 1) Relative to current page
+// 2) Absolute from site root
+// 3) Relative to this script's directory (best for pages in subfolders)
+const scriptUrl = (document.currentScript && document.currentScript.src) ? new URL(document.currentScript.src, document.baseURI) : null;
+const scriptDir = scriptUrl ? scriptUrl.href.substring(0, scriptUrl.href.lastIndexOf("/") + 1) : "";
+const candidates = [
+  `assets/technology/${filename}`,
+  `/assets/technology/${filename}`,
+  `${scriptDir}assets/technology/${filename}`,
+  `${scriptDir}../assets/technology/${filename}`,
+];
 
-  let lastErr = null;
-  for (const url of candidates) {
-    try {
-      const f = await fetchAsFile(url, filename);
-      return f;
-    } catch (e) {
-      lastErr = e;
-    }
+let lastErr = null;
+for (const url of candidates) {
+  try {
+    const f = await fetchAsFile(url, filename);
+    return f;
+  } catch (e) {
+    lastErr = e;
   }
-  throw new Error(`Could not load ${logicalName} sample. Checked: ${candidates.join(", ")}. Last error: ${lastErr && lastErr.message ? lastErr.message : lastErr}`);
+}
+throw new Error(`Could not load ${logicalName} sample. Checked: ${candidates.join(", ")}. Last error: ${lastErr && lastErr.message ? lastErr.message : lastErr}`);
 }
 
 async function maybeLoadDefaultSamples() {
-  // Only load if the user hasn't picked anything yet
-  const hasEntries = entriesFile?.files && entriesFile.files.length > 0;
-  const hasIncomes = incomesFile?.files && incomesFile.files.length > 0;
-  const hasProjects = projectsFile?.files && projectsFile.files.length > 0;
+// Only load if the user hasn't picked anything yet
+const hasEntries = entriesFile?.files && entriesFile.files.length > 0;
+const hasIncomes = incomesFile?.files && incomesFile.files.length > 0;
+const hasProjects = projectsFile?.files && projectsFile.files.length > 0;
 
-  // If user already provided both required inputs, do nothing
-  if (hasEntries && hasIncomes) return;
+// If user already provided both required inputs, do nothing
+if (hasEntries && hasIncomes) return;
 
-  try {
-    setStatus("Loading sample files…");
+try {
+  setStatus("Loading sample files…");
 
-    const [entriesF, incomesF] = await Promise.all([
-      hasEntries ? null : tryFetchSample("time_sample.csv", "Time"),
-      hasIncomes ? null : tryFetchSample("income_sample.csv", "Income"),
-    ]);
+  const [entriesF, incomesF] = await Promise.all([
+    hasEntries ? null : tryFetchSample("time_sample.csv", "Time"),
+    hasIncomes ? null : tryFetchSample("income_sample.csv", "Income"),
+  ]);
 
-    if (entriesF) setInputFile(entriesFile, entriesF);
-    if (incomesF) setInputFile(incomesFile, incomesF);
+  if (entriesF) setInputFile(entriesFile, entriesF);
+  if (incomesF) setInputFile(incomesFile, incomesF);
 
-    // Optional projects sample (ignore if missing)
-    if (projectsFile && !hasProjects) {
-      try {
-        const projectsF = await tryFetchSample("project_sample.csv", "Project");
-        setInputFile(projectsFile, projectsF);
-      } catch (e) {
-        // optional
-      }
+  // Optional projects sample (ignore if missing)
+  if (projectsFile && !hasProjects) {
+    try {
+      const projectsF = await tryFetchSample("project_sample.csv", "Project");
+      setInputFile(projectsFile, projectsF);
+    } catch (e) {
+      // optional
     }
-
-    setStatus("Sample files loaded ✔");
-
-    // Auto-run merge so the "See" panel is populated.
-    // (If the user later uploads their own files, they can re-run merge normally.)
-    if (runMergeBtn && !runMergeBtn.disabled) {
-      runMergeBtn.click();
-    }
-  } catch (e) {
-    // Don't block the app if samples fail to load
-    const msg = (e && e.message) ? e.message : String(e);
-    setStatus(`Sample auto-load failed: ${msg}`);
-    console.warn("Sample auto-load failed:", e);
   }
+
+  setStatus("Sample files loaded ✔");
+
+  // Auto-run merge so the "See" panel is populated.
+  // (If the user later uploads their own files, they can re-run merge normally.)
+  if (runMergeBtn && !runMergeBtn.disabled) {
+    runMergeBtn.click();
+  }
+} catch (e) {
+  // Don't block the app if samples fail to load
+  const msg = (e && e.message) ? e.message : String(e);
+  setStatus(`Sample auto-load failed: ${msg}`);
+  console.warn("Sample auto-load failed:", e);
+}
 }
 
 // Auto-load samples on page load if no user files selected
 maybeLoadDefaultSamples();
 
-  // =========================================================
-  // 7) Guided local preview (single CSV)
-  // =========================================================
-  function initGuidedExample() {
-    const fileInput = document.getElementById("guidedFileInput");
-    const preview = document.getElementById("guidedPreview");
-    if (!fileInput || !preview) return;
+// =========================================================
+// 7) Guided local preview (single CSV)
+// =========================================================
+function initGuidedExample() {
+  const fileInput = document.getElementById("guidedFileInput");
+  const preview = document.getElementById("guidedPreview");
+  if (!fileInput || !preview) return;
 
-    fileInput.addEventListener("change", async () => {
-      const f = fileInput.files?.[0];
-      if (!f) return;
-      const txt = await f.text();
-      preview.value = txt;
-    });
-  }
+  fileInput.addEventListener("change", async () => {
+    const f = fileInput.files?.[0];
+    if (!f) return;
+    const txt = await f.text();
+    preview.value = txt;
+  });
+}
 
-  // =========================================================
-  // 8) Boot
-  // =========================================================
-  function boot() {
-    ensureAuthBar();
-    initGuidedExample();
-    initWorkbench();
-  }
+// =========================================================
+// 8) Boot
+// =========================================================
+function boot() {
+  ensureAuthBar();
+  initGuidedExample();
+  initWorkbench();
+}
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
-  }
-})();
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", boot);
+} else {
+  boot();
+}
