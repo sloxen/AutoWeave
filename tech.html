@@ -181,14 +181,14 @@
           <section class="aw-pane" aria-label="Build (inputs and pipeline)">
             <div class="aw-pane__header">
               <h3 class="aw-pane__title">Build</h3>
-              <p class="aw-pane__subtitle">Inputs, trims and merges your files</p>
+              <p class="aw-pane__subtitle">Inputs, trims and merges preloaded samples or your own files</p>
             </div>
 
             <div class="aw-pane__body">
               <div class="aw-card">
                 <div class="contact-form" style="max-width: 100%;">
                   <div class="form-row">
-                    <h4 class="aw-card__title">Time entries</h4>
+                    <h4 class="aw-card__title">Time</h4>
                     <input id="entriesFile" type="file" accept=".csv,tsv,text/csv" />
                   </div>
                 </div>
@@ -254,6 +254,23 @@
 
               <div class="aw-card">
                 <h4 class="aw-card__title">Visualisations</h4>
+
+                <div class="contact-form" style="max-width: 100%;">
+                  <div class="form-row" style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
+                    <label for="groupBySel" style="margin:0;">Group by</label>
+                    <select id="groupBySel">
+                      <option value="day">Day</option>
+                      <option value="week">Week</option>
+                      <option value="month">Month</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div id="visIncome"></div>
+                <div class="spacer-lg"></div>
+                <div id="visDuration"></div>
+                <div class="spacer-lg"></div>
+                <div id="visRatio"></div>
               </div>
             </div>
           </section>

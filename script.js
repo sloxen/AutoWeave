@@ -493,47 +493,55 @@
   }
 
   function normalizeMergedRow(obj) {
-    // Backend merged CSV uses project_name
-    const project = String(
-      obj.project ??
-      obj.project_name ??
-      obj.Project ??
-      obj.PROJECT ??
-      obj.projectName ??
-      ""
-    ).trim();
-
-    const dateRaw =
-      obj.work_date ||
-      obj.date ||
-      obj.workDate ||
-      obj.workDateISO ||
-      obj.workdate ||
-      "";
-
+    const project = String(obj.project || obj.Project || obj.PROJECT || "").trim();
+    const dateRaw = obj.work_date || obj.date || obj.workDate || obj.workDateISO || obj.workdate || "";
     const d = parseDateish(dateRaw);
     const work_date = d ? isoDate(d) : String(dateRaw || "").trim();
 
-    // Prefer amount_gbp if present, else amount/income
-    const income = Number(
-      obj.amount_gbp ??
-      obj.income ??
-      obj.Income ??
-      obj.amount ??
-      obj.Amount ??
-      0
-    ) || 0;
-
-    const duration = Number(
-      obj.duration_hours ??
-      obj.duration ??
-      obj.hours ??
-      obj.Hours ??
-      0
-    ) || 0;
+    const income = Number(obj.income ?? obj.Income ?? obj.amount ?? obj.Amount ?? 0) || 0;
+    const duration = Number(obj.duration_hours ?? obj.duration ?? obj.hours ?? obj.Hours ?? 0) || 0;
 
     return { work_date, project, income, duration };
   }
+
+  function buildQuickStatsTextFromMergedCsv(csvText) {
+    const rows = parseCsv(csvText);
+    const objs = rowsToObjects(rows);
+
+    const normalized = objs
+      .map(normalizeMergedRow)
+      .filter(r => r.project && r.work_date);
+
+    const totalIncome = sum(normalized.map(r => r.income));
+    const totalHours = sum(normalized.map(r => r.duration));
+    const ratio = totalHours > 0 ? (totalIncome / totalHours) : 0;
+
+    const byProject = new Map();
+    for (const r of normalized) {
+      if (!byProject.has(r.project)) byProject.set(r.project, { income: 0, hours: 0 });
+      const rec = byProject.get(r.project);
+      rec.income += r.income;
+      rec.hours += r.duration;
+    }
+
+    const lines = [];
+    lines.push(`Total income: £${fmtMoney(totalIncome)}`);
+    lines.push(`Total duration: ${fmtHours(totalHours)}`);
+    lines.push(`Income / hour: £${fmtRatio(ratio)}`);
+    lines.push("");
+    lines.push("Project\tTotal income\tTotal duration\tIncome / hour");
+
+    const projectsSorted = Array.from(byProject.entries())
+      .sort((a, b) => (b[1].income - a[1].income) || (b[1].hours - a[1].hours) || a[0].localeCompare(b[0]));
+
+    for (const [name, rec] of projectsSorted) {
+      const pRatio = rec.hours > 0 ? (rec.income / rec.hours) : 0;
+      lines.push(`${name}\t£${fmtMoney(rec.income)}\t${fmtHours(rec.hours)}\t£${fmtRatio(pRatio)}`);
+    }
+
+    return lines.join("\n");
+  }
+
 
   function buildDailyProjectSeries(objs, group = "day") {
     const rows = objs
@@ -987,16 +995,35 @@
               return;
             }
 
-            // Call backend delete endpoint directly (no form needed)
-            await authDeleteAccount(em, pw, c);
+            const deleteEmailInput = document.getElementById("delete-email");
+            const deletePasswordInput = document.getElementById("delete-password");
+            const deleteConfirmInput = document.getElementById("delete-confirm");
 
-            // Clear session + refresh UI
+            deleteForm.addEventListener("submit", async (e) => {
+              e.preventDefault();
+
+              try {
+                const email = deleteEmailInput.value.trim();
+                const password = deletePasswordInput.value;
+                const confirm = deleteConfirmInput.value;
+
+                await authDeleteAccount(email, password, confirm);
+
+                alert("Account deleted.");
+                clearAuthToken();
+                location.reload();
+              } catch (err) {
+                deleteError.textContent = err.message || "Delete failed";
+              }
+            });
+
+            // Clear session
             clearAuthToken();
             syncAuthUi();
 
             msg.textContent = "Account deleted ✔";
-            // Optional: reload so any cached UI/state resets
-            setTimeout(() => location.reload(), 650);
+            setTimeout(closeModal, 650);
+
           } else {
             msg.textContent = "Unknown action.";
           }
@@ -1087,44 +1114,6 @@
   // =========================================================
   // 6) Workbench wiring (upload + merge)
   // =========================================================
-    function buildQuickStatsTextFromMergedCsv(csvText) {
-    const rows = parseCsv(csvText);
-    const objs = rowsToObjects(rows);
-    const normalized = objs
-      .map(normalizeMergedRow)
-      .filter(r => r.project); // only keep rows that have a project
-
-    const totalIncome = sum(normalized.map(r => r.income));
-    const totalHours = sum(normalized.map(r => r.duration));
-    const ratio = totalHours > 0 ? (totalIncome / totalHours) : 0;
-
-    const byProject = new Map();
-    for (const r of normalized) {
-      if (!byProject.has(r.project)) byProject.set(r.project, { income: 0, hours: 0 });
-      const rec = byProject.get(r.project);
-      rec.income += r.income;
-      rec.hours += r.duration;
-    }
-
-    const lines = [];
-    lines.push(`Rows: ${normalized.length}`);
-    lines.push(`Total income: £${fmtMoney(totalIncome)}`);
-    lines.push(`Total duration: ${fmtHours(totalHours)} h`);
-    lines.push(`Income / hour: £${fmtRatio(ratio)}`);
-    lines.push("");
-    lines.push("By project:");
-
-    const projectsSorted = Array.from(byProject.entries())
-      .sort((a, b) => (b[1].income - a[1].income) || (b[1].hours - a[1].hours) || a[0].localeCompare(b[0]));
-
-    for (const [name, rec] of projectsSorted) {
-      const pRatio = rec.hours > 0 ? (rec.income / rec.hours) : 0;
-      lines.push(`- ${name}: £${fmtMoney(rec.income)} | ${fmtHours(rec.hours)} h | £${fmtRatio(pRatio)}/h`);
-    }
-
-    return lines.join("\n");
-  }
-
   function initWorkbench() {
     const incomesFile = document.getElementById("incomesFile");
     const entriesFile = document.getElementById("entriesFile");
@@ -1237,9 +1226,6 @@
         });
 
         const data = await res.json();
-
-        setBoxText(statsMerged, JSON.stringify(data.stats ?? {}, null, 2));
-
         const hasCsv = typeof data.download_csv === "string" && data.download_csv.length > 0;
         if (!hasCsv) {
           setStatus(`No output CSV returned.`);
@@ -1248,6 +1234,8 @@
 
         const csv = data.download_csv;
         setBoxText(previewMerged, csv);
+
+        setBoxText(statsMerged, buildQuickStatsTextFromMergedCsv(csv));
 
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
         const url = URL.createObjectURL(blob);
