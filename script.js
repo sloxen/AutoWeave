@@ -366,6 +366,82 @@
     while (el && el.firstChild) el.removeChild(el.firstChild);
   }
 
+
+  function ensureSharedLegend(anchorEl, projectNames) {
+    try {
+      const card = anchorEl ? anchorEl.closest(".aw-card") : null;
+      if (!card) return;
+
+      // Remove existing legend so we always stay in sync with current projects
+      const existing = card.querySelector("#owSharedLegend");
+      if (existing) existing.remove();
+
+      const incomeEl = card.querySelector("#visIncome") || anchorEl;
+
+      const legend = document.createElement("div");
+      legend.id = "owSharedLegend";
+      legend.style.display = "flex";
+      legend.style.flexWrap = "wrap";
+      legend.style.gap = "10px 12px";
+      legend.style.alignItems = "center";
+      legend.style.padding = "10px 12px";
+      legend.style.margin = "8px 0 12px 0";
+      legend.style.border = "1px solid rgba(15,31,23,0.10)";
+      legend.style.borderRadius = "14px";
+      legend.style.background = "rgba(255,255,255,0.72)";
+
+      const label = document.createElement("div");
+      label.textContent = "Legend";
+      label.style.fontSize = "0.78rem";
+      label.style.letterSpacing = "0.06em";
+      label.style.fontWeight = "900";
+      label.style.color = "rgba(15,31,23,0.55)";
+      label.style.textTransform = "uppercase";
+      label.style.marginRight = "6px";
+      legend.appendChild(label);
+
+      for (const p of projectNames) {
+        const item = document.createElement("div");
+        item.style.display = "inline-flex";
+        item.style.alignItems = "center";
+        item.style.gap = "8px";
+        item.style.padding = "6px 10px";
+        item.style.borderRadius = "9999px";
+        item.style.border = "1px solid rgba(15,31,23,0.10)";
+        item.style.background = "rgba(255,255,255,0.88)";
+
+        const sw = document.createElement("span");
+        sw.style.display = "inline-block";
+        sw.style.width = "12px";
+        sw.style.height = "12px";
+        sw.style.borderRadius = "4px";
+        sw.style.background = colorForProject(p, projectNames);
+        sw.style.boxShadow = "0 4px 10px rgba(15,31,23,0.10)";
+        item.appendChild(sw);
+
+        const tx = document.createElement("span");
+        tx.textContent = p;
+        tx.style.fontSize = "0.86rem";
+        tx.style.fontWeight = "800";
+        tx.style.color = "rgba(15,31,23,0.78)";
+        item.appendChild(tx);
+
+        legend.appendChild(item);
+      }
+
+      // Insert legend once for all three figures (above visIncome)
+      if (incomeEl && incomeEl.parentElement) {
+        incomeEl.parentElement.insertBefore(legend, incomeEl);
+      } else {
+        card.insertBefore(legend, card.firstChild);
+      }
+    } catch (e) {
+      // silent
+    }
+  }
+
+
+  
   function renderStackedBars(container, data, projectNames, valueKey, title) {
     clearEl(container);
 
@@ -374,6 +450,30 @@
     ]);
 
     container.appendChild(header);
+
+    // Layout: Y-axis + chart area
+    const axisHeight = 160; // px (gives room for tick labels + rotated x labels)
+    const barMaxHeight = 140; // px (kept consistent with existing scaling)
+
+    const wrap = createEl("div", { className: "aw-stacked-wrap" });
+    wrap.style.display = "grid";
+    wrap.style.gridTemplateColumns = "52px 1fr";
+    wrap.style.gap = "10px";
+    wrap.style.alignItems = "start";
+
+    const yAxis = createEl("div", { className: "aw-y-axis" });
+    yAxis.style.position = "relative";
+    yAxis.style.height = `${axisHeight}px`;
+    yAxis.style.marginTop = "8px";
+
+    const yLine = createEl("div");
+    yLine.style.position = "absolute";
+    yLine.style.left = "46px";
+    yLine.style.top = "0";
+    yLine.style.bottom = "18px";
+    yLine.style.width = "1px";
+    yLine.style.background = "rgba(15,31,23,0.14)";
+    yAxis.appendChild(yLine);
 
     const chart = createEl("div", { className: "aw-stacked-chart" });
     chart.style.display = "grid";
@@ -384,23 +484,66 @@
 
     const maxTotal = Math.max(1, ...data.map(d => Number(d.total) || 0));
 
+    // Y-axis ticks
+    const ticks = [1, 0.75, 0.5, 0.25, 0];
+    const fmtY = (v) => {
+      if (valueKey === "count") return String(Math.round(v));
+      if (valueKey === "ratio") return fmtRatio(v);
+      if (valueKey === "hours") return fmtHours(v);
+      return fmtMoney(v);
+    };
+
+    for (const t of ticks) {
+      const v = maxTotal * t;
+      const y = Math.round((1 - t) * barMaxHeight); // relative to bar area
+      const tick = createEl("div");
+      tick.style.position = "absolute";
+      tick.style.left = "0";
+      tick.style.right = "0";
+      tick.style.top = `${y}px`;
+
+      const txt = createEl("div", { textContent: fmtY(v) });
+      txt.style.position = "absolute";
+      txt.style.left = "0";
+      txt.style.transform = "translateY(-50%)";
+      txt.style.fontSize = "0.74rem";
+      txt.style.fontWeight = "800";
+      txt.style.color = "rgba(15,31,23,0.55)";
+      txt.style.whiteSpace = "nowrap";
+
+      const mark = createEl("div");
+      mark.style.position = "absolute";
+      mark.style.left = "44px";
+      mark.style.width = "6px";
+      mark.style.height = "1px";
+      mark.style.background = "rgba(15,31,23,0.14)";
+      mark.style.transform = "translateY(-50%)";
+
+      tick.appendChild(txt);
+      tick.appendChild(mark);
+      yAxis.appendChild(tick);
+    }
+
     for (const d of data) {
       const col = createEl("div", { className: "aw-bar-col" });
       col.style.display = "flex";
       col.style.flexDirection = "column";
       col.style.justifyContent = "flex-end";
       col.style.gap = "6px";
+      col.style.alignItems = "center";
 
       const bar = createEl("div", { className: "aw-bar" });
       bar.style.width = "100%";
-      bar.style.height = `${Math.round((Number(d.total) || 0) / maxTotal * 140)}px`;
+      bar.style.maxWidth = "84px";
+      bar.style.height = `${Math.round((Number(d.total) || 0) / maxTotal * barMaxHeight)}px`;
       bar.style.borderRadius = "12px";
       bar.style.overflow = "hidden";
       bar.style.display = "flex";
       bar.style.flexDirection = "column-reverse";
       bar.style.boxShadow = "0 10px 22px rgba(15,31,23,0.10)";
       bar.style.border = "1px solid rgba(15,31,23,0.10)";
-      bar.title = `${d.key}\nTotal: ${valueKey === "count" ? String(Math.round(Number(d.total)||0)) : (valueKey === "ratio" ? fmtRatio(d.total) : (valueKey === "hours" ? fmtHours(d.total) : fmtMoney(d.total)))}`;
+      bar.title = `${d.key}
+Total: ${valueKey === "count" ? String(Math.round(Number(d.total)||0)) : (valueKey === "ratio" ? fmtRatio(d.total) : (valueKey === "hours" ? fmtHours(d.total) : fmtMoney(d.total)))}`;
 
       for (const p of projectNames) {
         const v = Number(d.values?.[p]) || 0;
@@ -414,21 +557,36 @@
         bar.appendChild(seg);
       }
 
+      // X-axis label (rotate 75 degrees)
+      const labelBox = createEl("div");
+      labelBox.style.height = "62px";
+      labelBox.style.display = "flex";
+      labelBox.style.alignItems = "flex-start";
+      labelBox.style.justifyContent = "center";
+      labelBox.style.overflow = "visible";
+
       const label = createEl("div", { className: "aw-bar-label", textContent: d.key });
       label.style.fontSize = "0.8rem";
-      label.style.textAlign = "center";
+      label.style.textAlign = "left";
       label.style.color = "rgba(15,31,23,0.62)";
       label.style.whiteSpace = "nowrap";
-      label.style.overflow = "hidden";
-      label.style.textOverflow = "ellipsis";
+      label.style.transform = "rotate(-75deg)";
+      label.style.transformOrigin = "top left";
+      label.style.display = "inline-block";
+      label.style.maxWidth = "160px";
+
+      labelBox.appendChild(label);
 
       col.appendChild(bar);
-      col.appendChild(label);
+      col.appendChild(labelBox);
       chart.appendChild(col);
     }
 
-    container.appendChild(chart);
+    wrap.appendChild(yAxis);
+    wrap.appendChild(chart);
+    container.appendChild(wrap);
   }
+
 
   // =========================================================
   // 4) Parse merged CSV stats for visuals
@@ -1423,6 +1581,9 @@
       const group = groupSel ? String(groupSel.value || "day") : "day";
 
       const { projectNames, buckets } = buildDailyProjectSeries(normalized, group);
+
+      // Shared legend across all three figures
+      ensureSharedLegend(visIncome, projectNames);
 
       // Keep mode in sync with the legacy cumulative flag (back-compat)
       visState.cumulative = (visState.mode === "cumulative");
