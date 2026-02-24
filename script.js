@@ -542,6 +542,197 @@
     return lines.join("\n");
   }
 
+  // =========================================================
+  // 4b) Quick stats (ggplot / tibble-style table render)
+  //   - IMPORTANT: only remakes the Quick stats table
+  //   - No other features/sections touched
+  // =========================================================
+  function renderQuickStatsGgTable(container, csvText) {
+    if (!container) return;
+    // container is a <div> (#statsMerged)
+    container.innerHTML = "";
+
+    // Parse + normalize
+    const rows = parseCsv(csvText || "");
+    const objs = rowsToObjects(rows);
+    const normalized = objs
+      .map(normalizeMergedRow)
+      .filter(r => r.project && r.work_date);
+
+    // Empty state
+    if (!normalized.length) {
+      const empty = document.createElement("div");
+      empty.textContent = "No stats available (merged output has no parsable rows).";
+      empty.style.color = "rgba(15,31,23,0.55)";
+      empty.style.fontSize = "0.95rem";
+      container.appendChild(empty);
+      return;
+    }
+
+    const rowCount = normalized.length;
+    const totalIncome = sum(normalized.map(r => r.income));
+    const totalHours = sum(normalized.map(r => r.duration));
+    const ratio = totalHours > 0 ? (totalIncome / totalHours) : 0;
+
+    // Aggregate by project
+    const byProject = new Map();
+    for (const r of normalized) {
+      if (!byProject.has(r.project)) byProject.set(r.project, { income: 0, hours: 0 });
+      const rec = byProject.get(r.project);
+      rec.income += r.income;
+      rec.hours += r.duration;
+    }
+
+    const projectsSorted = Array.from(byProject.entries())
+      .sort((a, b) => (b[1].income - a[1].income) || (b[1].hours - a[1].hours) || a[0].localeCompare(b[0]));
+
+    // Wrapper (ggplot-like panel)
+    const wrap = document.createElement("div");
+    wrap.style.display = "flex";
+    wrap.style.flexDirection = "column";
+    wrap.style.gap = "10px";
+    wrap.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+
+    // Mini summary (like tibble header)
+    const head = document.createElement("div");
+    head.style.display = "flex";
+    head.style.flexWrap = "wrap";
+    head.style.gap = "10px";
+    head.style.alignItems = "baseline";
+    head.style.padding = "6px 8px";
+    head.style.border = "1px solid rgba(15,31,23,0.10)";
+    head.style.borderRadius = "12px";
+    head.style.background = "rgba(255,255,255,0.72)";
+
+    const title = document.createElement("div");
+    title.textContent = "# A tibble: projects";
+    title.style.fontWeight = "800";
+    title.style.letterSpacing = "0.02em";
+    title.style.color = "rgba(15,31,23,0.86)";
+
+    const meta = document.createElement("div");
+    meta.textContent = `${projectsSorted.length} × 3   |   rows: ${rowCount}`;
+    meta.style.color = "rgba(15,31,23,0.62)";
+    meta.style.fontWeight = "700";
+    meta.style.marginLeft = "auto";
+
+    head.appendChild(title);
+    head.appendChild(meta);
+
+    const kpis = document.createElement("div");
+    kpis.style.display = "grid";
+    kpis.style.gridTemplateColumns = "repeat(3, minmax(0, 1fr))";
+    kpis.style.gap = "8px";
+
+    function kpi(label, value) {
+      const box = document.createElement("div");
+      box.style.padding = "8px";
+      box.style.border = "1px solid rgba(15,31,23,0.10)";
+      box.style.borderRadius = "12px";
+      box.style.background = "rgba(255,255,255,0.72)";
+      const l = document.createElement("div");
+      l.textContent = label;
+      l.style.fontSize = "0.72rem";
+      l.style.letterSpacing = "0.14em";
+      l.style.textTransform = "uppercase";
+      l.style.color = "rgba(15,31,23,0.55)";
+      l.style.fontWeight = "800";
+      const v = document.createElement("div");
+      v.textContent = value;
+      v.style.fontSize = "1.02rem";
+      v.style.fontWeight = "900";
+      v.style.color = "rgba(15,31,23,0.90)";
+      v.style.marginTop = "3px";
+      box.appendChild(l);
+      box.appendChild(v);
+      return box;
+    }
+
+    kpis.appendChild(kpi("Total income", `£${fmtMoney(totalIncome)}`));
+    kpis.appendChild(kpi("Total time", `${fmtHours(totalHours)} h`));
+    kpis.appendChild(kpi("Income / hour", `£${fmtRatio(ratio)}`));
+
+    // Table (tibble-like)
+    const tableWrap = document.createElement("div");
+    tableWrap.style.border = "1px solid rgba(15,31,23,0.10)";
+    tableWrap.style.borderRadius = "14px";
+    tableWrap.style.background = "rgba(255,255,255,0.72)";
+    tableWrap.style.overflow = "auto";
+
+    const table = document.createElement("table");
+    table.style.width = "100%";
+    table.style.borderCollapse = "separate";
+    table.style.borderSpacing = "0";
+    table.style.fontSize = "0.92rem";
+
+    const thead = document.createElement("thead");
+    const trh = document.createElement("tr");
+    const headers = [
+      { t: "project", align: "left" },
+      { t: "total_income", align: "right" },
+      { t: "total_time_h", align: "right" },
+      { t: "income_per_h", align: "right" },
+    ];
+    for (const h of headers) {
+      const th = document.createElement("th");
+      th.textContent = h.t;
+      th.style.position = "sticky";
+      th.style.top = "0";
+      th.style.background = "rgba(255,255,255,0.92)";
+      th.style.borderBottom = "1px solid rgba(15,31,23,0.12)";
+      th.style.padding = "10px 10px";
+      th.style.textAlign = h.align;
+      th.style.fontSize = "0.72rem";
+      th.style.letterSpacing = "0.14em";
+      th.style.textTransform = "uppercase";
+      th.style.color = "rgba(15,31,23,0.55)";
+      th.style.fontWeight = "900";
+      trh.appendChild(th);
+    }
+    thead.appendChild(trh);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    projectsSorted.forEach(([name, rec], idx) => {
+      const tr = document.createElement("tr");
+      tr.style.background = idx % 2 === 0 ? "rgba(15,31,23,0.02)" : "transparent";
+
+      const pRatio = rec.hours > 0 ? (rec.income / rec.hours) : 0;
+
+      const cells = [
+        { v: name, align: "left", weight: "800", color: "rgba(15,31,23,0.86)" },
+        { v: `£${fmtMoney(rec.income)}`, align: "right" },
+        { v: `${fmtHours(rec.hours)}`, align: "right" },
+        { v: `£${fmtRatio(pRatio)}`, align: "right" },
+      ];
+
+      for (const c of cells) {
+        const td = document.createElement("td");
+        td.textContent = c.v;
+        td.style.padding = "10px 10px";
+        td.style.borderBottom = "1px solid rgba(15,31,23,0.08)";
+        td.style.textAlign = c.align || "left";
+        td.style.color = c.color || "rgba(15,31,23,0.75)";
+        td.style.fontWeight = c.weight || "700";
+        td.style.whiteSpace = "nowrap";
+        if (c.align === "left") {
+          td.style.maxWidth = "260px";
+          td.style.overflow = "hidden";
+          td.style.textOverflow = "ellipsis";
+        }
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+
+    wrap.appendChild(head);
+    wrap.appendChild(kpis);
+    wrap.appendChild(tableWrap);
+    container.appendChild(wrap);
+  }
+
 
   function buildDailyProjectSeries(objs, group = "day") {
     const rows = objs
@@ -1178,7 +1369,7 @@
       entriesFile.value = "";
 
       setBoxText(previewMerged, "");
-      setBoxText(statsMerged, "");
+      if (statsMerged) statsMerged.innerHTML = "";
       setStatus("");
 
       downloadBtn.style.display = "none";
@@ -1209,7 +1400,7 @@
       downloadBtn.style.display = "none";
       downloadBtn.removeAttribute("href");
       setBoxText(previewMerged, "");
-      setBoxText(statsMerged, "");
+      if (statsMerged) statsMerged.innerHTML = "";
       clearVisuals();
 
       setStatus("Uploading files…");
@@ -1235,7 +1426,8 @@
         const csv = data.download_csv;
         setBoxText(previewMerged, csv);
 
-        setBoxText(statsMerged, buildQuickStatsTextFromMergedCsv(csv));
+        // Quick stats: ggplot / tibble-like table
+        renderQuickStatsGgTable(statsMerged, csv);
 
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
         const url = URL.createObjectURL(blob);
