@@ -400,7 +400,7 @@
       bar.style.flexDirection = "column-reverse";
       bar.style.boxShadow = "0 10px 22px rgba(15,31,23,0.10)";
       bar.style.border = "1px solid rgba(15,31,23,0.10)";
-      bar.title = `${d.key}\nTotal: ${fmtMoney(d.total)}`;
+      bar.title = `${d.key}\nTotal: ${valueKey === "count" ? String(Math.round(Number(d.total)||0)) : (valueKey === "ratio" ? fmtRatio(d.total) : (valueKey === "hours" ? fmtHours(d.total) : fmtMoney(d.total)))}`;
 
       for (const p of projectNames) {
         const v = Number(d.values?.[p]) || 0;
@@ -410,7 +410,7 @@
         seg.style.height = `${pct * 100}%`;
         seg.style.background = colorForProject(p, projectNames);
         seg.style.opacity = "0.85";
-        seg.title = `${p}: ${valueKey === "ratio" ? fmtRatio(v) : (valueKey === "hours" ? fmtHours(v) : fmtMoney(v))}`;
+        seg.title = `${p}: ${valueKey === "count" ? String(Math.round(v)) : (valueKey === "ratio" ? fmtRatio(v) : (valueKey === "hours" ? fmtHours(v) : fmtMoney(v)))}`;
         bar.appendChild(seg);
       }
 
@@ -1424,12 +1424,54 @@
 
       const { projectNames, buckets } = buildDailyProjectSeries(normalized, group);
 
-      // Build per-bucket series
+      // Keep mode in sync with the legacy cumulative flag (back-compat)
+      visState.cumulative = (visState.mode === "cumulative");
+
+      // Build per-bucket series (nominal default)
       let incomeSeries = buckets.map(b => ({ key: b.key, values: b.valuesIncome, total: b.totalIncome }));
       let hoursSeries = buckets.map(b => ({ key: b.key, values: b.valuesHours, total: b.totalHours }));
       let ratioSeries = buckets.map(b => ({ key: b.key, values: b.valuesRatio, total: b.totalRatio }));
 
-      // Optional cumulative mode
+      // Frequency mode (counts of entries per bucket/project)
+      if (visState.mode === "frequency") {
+        function keyForDate(iso) {
+          const d = parseDateish(iso);
+          if (!d) return iso;
+          if (group === "year") {
+            return `${d.getFullYear()}`;
+          }
+          if (group === "month") {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          }
+          if (group === "week") {
+            const dt = new Date(d);
+            const day = (dt.getDay() + 6) % 7; // Monday=0
+            dt.setDate(dt.getDate() - day);
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, "0");
+            const dd = String(dt.getDate()).padStart(2, "0");
+            return `${y}-W${m}${dd}`;
+          }
+          return isoDate(d);
+        }
+
+        const byKey = new Map();
+        for (const r of normalized) {
+          const k = keyForDate(r.work_date);
+          if (!byKey.has(k)) byKey.set(k, { key: k, values: {}, total: 0 });
+          const rec = byKey.get(k);
+          rec.values[r.project] = (rec.values[r.project] || 0) + 1;
+          rec.total += 1;
+        }
+        const freq = Array.from(byKey.values()).sort((a, b) => String(a.key).localeCompare(String(b.key)));
+
+        // Use frequency data for all three charts (same layout, different meaning)
+        incomeSeries = freq;
+        hoursSeries = freq;
+        ratioSeries = freq;
+      }
+
+      // Optional cumulative mode (income + duration; ratio derived)
       if (visState.cumulative) {
         const runIncome = {};
         const runHours = {};
@@ -1470,9 +1512,16 @@
         });
       }
 
-      renderStackedBars(visIncome, incomeSeries, projectNames, "money", "Income by project");
-      renderStackedBars(visDuration, hoursSeries, projectNames, "hours", "Duration by project");
-      renderStackedBars(visRatio, ratioSeries, projectNames, "ratio", "Income / Duration by project");
+      // Render (mode-aware labels)
+      if (visState.mode === "frequency") {
+        renderStackedBars(visIncome, incomeSeries, projectNames, "count", "Frequency by project");
+        renderStackedBars(visDuration, hoursSeries, projectNames, "count", "Frequency by project");
+        renderStackedBars(visRatio, ratioSeries, projectNames, "count", "Frequency by project");
+      } else {
+        renderStackedBars(visIncome, incomeSeries, projectNames, "money", "Income by project");
+        renderStackedBars(visDuration, hoursSeries, projectNames, "hours", "Duration by project");
+        renderStackedBars(visRatio, ratioSeries, projectNames, "ratio", "Income / Duration by project");
+      }
     }
 
     // ------------------------------
@@ -1483,6 +1532,9 @@
       range: "all",          // "14" | "30" | "90" | "all" | "custom"
       customFrom: "",
       customTo: "",
+      // Mode: "nominal" (default), "cumulative", "frequency"
+      mode: "nominal",
+      // Back-compat flag used by existing logic (derived from mode)
       cumulative: false,
     };
 
@@ -1576,15 +1628,37 @@
     function initVisControlsOnce() {
       const rangeWrap = document.getElementById("owRangePills");
       const groupWrap = document.getElementById("owGroupPills");
-      const modeBtn = document.getElementById("owModeCumulative");
+      const modeWrap = document.getElementById("owModePills");
+      const modeNominalBtnId = "owModeNominal";
+      const modeFreqBtnId = "owModeFrequency";
+      const modeCumuBtnId = "owModeCumulative";
       const exportBtn = document.getElementById("owExportPng");
+
+      // Ensure mode buttons exist (do NOT remove any existing buttons)
+      function ensureModeBtn(id, label) {
+        let btn = document.getElementById(id);
+        if (!btn && modeWrap) {
+          btn = document.createElement("button");
+          btn.type = "button";
+          btn.id = id;
+          btn.textContent = label;
+          modeWrap.insertBefore(btn, exportBtn || null);
+        }
+        return btn;
+      }
+
+      const modeNominalBtn = ensureModeBtn(modeNominalBtnId, "Nominal");
+      const modeFreqBtn = ensureModeBtn(modeFreqBtnId, "Frequency");
+      const modeBtn = document.getElementById(modeCumuBtnId);
+
       const customBox = document.getElementById("owRangeCustomInputs");
       const fromInput = document.getElementById("owFromDate");
       const toInput = document.getElementById("owToDate");
       const applyBtn = document.getElementById("owApplyCustom");
       const groupSel = document.getElementById("groupBySel");
 
-      if (!rangeWrap || !groupWrap || !modeBtn || !exportBtn || !groupSel) return;
+      if (!rangeWrap || !groupWrap || !exportBtn || !groupSel) return;
+      if (!modeNominalBtn || !modeBtn || !modeFreqBtn) return;
 
       // Prevent double-binding
       if (rangeWrap.dataset.bound === "1") return;
@@ -1606,7 +1680,9 @@
         document.getElementById("owGroupYear"),
       ].filter(Boolean);
 
-      for (const b of [...rangeBtns, ...groupBtns, modeBtn, exportBtn]) stylePillButton(b);
+      const modeBtns = [modeNominalBtn, modeBtn, modeFreqBtn].filter(Boolean);
+
+      for (const b of [...rangeBtns, ...groupBtns, modeNominalBtn, modeBtn, modeFreqBtn, exportBtn]) stylePillButton(b);
 
       function setActive(btns, activeBtn) {
         btns.forEach(b => setPillActive(b, b === activeBtn));
@@ -1615,7 +1691,12 @@
       // Default states
       setActive(rangeBtns, document.getElementById("owRangeAll") || rangeBtns[0]);
       setActive(groupBtns, document.getElementById("owGroupDay") || groupBtns[0]);
-      setPillActive(modeBtn, !!visState.cumulative);
+      // Mode defaults to nominal
+      if (!visState.mode) visState.mode = "nominal";
+      visState.cumulative = (visState.mode === "cumulative");
+      if (visState.mode === "frequency") setActive(modeBtns, modeFreqBtn);
+      else if (visState.mode === "cumulative") setActive(modeBtns, modeBtn);
+      else setActive(modeBtns, modeNominalBtn);
 
       function setRange(mode) {
         visState.range = mode;
@@ -1669,12 +1750,17 @@
       document.getElementById("owGroupMonth")?.addEventListener("click", () => setGroup("month", "owGroupMonth"));
       document.getElementById("owGroupYear")?.addEventListener("click", () => setGroup("year", "owGroupYear"));
 
-      // Mode
-      modeBtn.addEventListener("click", () => {
-        visState.cumulative = !visState.cumulative;
-        setPillActive(modeBtn, !!visState.cumulative);
+      // Mode (radio-style: Nominal (default), Cumulative, Frequency)
+      function setMode(mode) {
+        visState.mode = mode;
+        visState.cumulative = (mode === "cumulative"); // back-compat
+        setActive(modeBtns, mode === "frequency" ? modeFreqBtn : (mode === "cumulative" ? modeBtn : modeNominalBtn));
         rerenderFromState();
-      });
+      }
+
+      modeNominalBtn.addEventListener("click", () => setMode("nominal"));
+      modeBtn.addEventListener("click", () => setMode("cumulative"));
+      modeFreqBtn.addEventListener("click", () => setMode("frequency"));
 
       // Export
       exportBtn.addEventListener("click", exportVisualsAsPng);
