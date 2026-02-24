@@ -388,44 +388,17 @@
       legend.style.margin = "8px 0 12px 0";
       legend.style.border = "1px solid rgba(15,31,23,0.10)";
       legend.style.borderRadius = "14px";
-      legend.style.background = "rgba(255,255,255,0.72)";
-
-      const label = document.createElement("div");
-      label.textContent = "Legend";
-      label.style.fontSize = "0.78rem";
-      label.style.letterSpacing = "0.06em";
-      label.style.fontWeight = "900";
-      label.style.color = "rgba(15,31,23,0.55)";
-      label.style.textTransform = "uppercase";
-      label.style.marginRight = "6px";
-      legend.appendChild(label);
+      legend.style.background = "rgba(255,255,255,0.72)"; 
 
       for (const p of projectNames) {
         const item = document.createElement("div");
-        item.style.display = "inline-flex";
-        item.style.alignItems = "center";
-        item.style.gap = "8px";
-        item.style.padding = "6px 10px";
-        item.style.borderRadius = "9999px";
+        item.title = p;
+        item.style.width = "22px";
+        item.style.height = "12px";
+        item.style.borderRadius = "4px"; // not a circle
+        item.style.background = colorForProject(p, projectNames);
+        item.style.boxShadow = "0 6px 14px rgba(15,31,23,0.12)";
         item.style.border = "1px solid rgba(15,31,23,0.10)";
-        item.style.background = "rgba(255,255,255,0.88)";
-
-        const sw = document.createElement("span");
-        sw.style.display = "inline-block";
-        sw.style.width = "12px";
-        sw.style.height = "12px";
-        sw.style.borderRadius = "4px";
-        sw.style.background = colorForProject(p, projectNames);
-        sw.style.boxShadow = "0 4px 10px rgba(15,31,23,0.10)";
-        item.appendChild(sw);
-
-        const tx = document.createElement("span");
-        tx.textContent = p;
-        tx.style.fontSize = "0.86rem";
-        tx.style.fontWeight = "800";
-        tx.style.color = "rgba(15,31,23,0.78)";
-        item.appendChild(tx);
-
         legend.appendChild(item);
       }
 
@@ -559,9 +532,9 @@ Total: ${valueKey === "count" ? String(Math.round(Number(d.total)||0)) : (valueK
 
       // X-axis label (rotate 75 degrees)
       const labelBox = createEl("div");
-      labelBox.style.height = "62px";
+      labelBox.style.height = "86px";
       labelBox.style.display = "flex";
-      labelBox.style.alignItems = "flex-start";
+      labelBox.style.alignItems = "flex-end";
       labelBox.style.justifyContent = "center";
       labelBox.style.overflow = "visible";
 
@@ -570,8 +543,8 @@ Total: ${valueKey === "count" ? String(Math.round(Number(d.total)||0)) : (valueK
       label.style.textAlign = "left";
       label.style.color = "rgba(15,31,23,0.62)";
       label.style.whiteSpace = "nowrap";
-      label.style.transform = "rotate(-75deg)";
-      label.style.transformOrigin = "top left";
+      label.style.transform = "translateY(6px) rotate(-75deg)";
+      label.style.transformOrigin = "bottom left";
       label.style.display = "inline-block";
       label.style.maxWidth = "160px";
 
