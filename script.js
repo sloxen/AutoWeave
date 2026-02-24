@@ -1548,7 +1548,18 @@
     }
 
     function exportVisualsAsPng() {
-      const anchor = document.getElementById("owExportPng");
+      return exportVisuals("png");
+    }
+
+    function exportVisualsAsSvg() {
+      return exportVisuals("svg");
+    }
+
+    function exportVisualsAsJpg() {
+      return exportVisuals("jpg");
+    }
+
+    function exportVisuals(kind) {
       const card = document.getElementById("visIncome")?.closest(".aw-card") || null;
       if (!card) return;
 
@@ -1564,6 +1575,7 @@
       const w = Math.max(300, card.scrollWidth);
       const h = Math.max(200, card.scrollHeight);
 
+      // Build a self-contained SVG (foreignObject)
       const xmlns = "http://www.w3.org/2000/svg";
       const svg = document.createElementNS(xmlns, "svg");
       svg.setAttribute("xmlns", xmlns);
@@ -1589,6 +1601,21 @@
       svg.appendChild(fo);
 
       const svgData = new XMLSerializer().serializeToString(svg);
+
+      // SVG export (direct)
+      if (kind === "svg") {
+        const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+        const dl = document.createElement("a");
+        dl.href = URL.createObjectURL(blob);
+        dl.download = "autoweave_visualisations.svg";
+        document.body.appendChild(dl);
+        dl.click();
+        dl.remove();
+        setTimeout(() => URL.revokeObjectURL(dl.href), 5000);
+        return;
+      }
+
+      // Raster export (PNG / JPG) via canvas
       const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
       const url = URL.createObjectURL(svgBlob);
 
@@ -1604,6 +1631,9 @@
         }
         ctx.drawImage(img, 0, 0);
 
+        const mime = (kind === "jpg") ? "image/jpeg" : "image/png";
+        const ext = (kind === "jpg") ? "jpg" : "png";
+
         canvas.toBlob((blob) => {
           if (!blob) {
             URL.revokeObjectURL(url);
@@ -1611,13 +1641,13 @@
           }
           const dl = document.createElement("a");
           dl.href = URL.createObjectURL(blob);
-          dl.download = "autoweave_visualisations.png";
+          dl.download = `autoweave_visualisations.${ext}`;
           document.body.appendChild(dl);
           dl.click();
           dl.remove();
           setTimeout(() => URL.revokeObjectURL(dl.href), 5000);
           URL.revokeObjectURL(url);
-        }, "image/png");
+        }, mime, (kind === "jpg") ? 0.92 : undefined);
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
@@ -1657,6 +1687,72 @@
       const applyBtn = document.getElementById("owApplyCustom");
       const groupSel = document.getElementById("groupBySel");
 
+      // -------------------------------------------------------
+      // Export option row (PNG default, plus SVG/JPG)
+      // - ONLY affects export controls (does not touch mode/range/group)
+      // -------------------------------------------------------
+      let exportPills = document.getElementById("owExportPills");
+      let exportSvgBtn = document.getElementById("owExportSvg");
+      let exportJpgBtn = document.getElementById("owExportJpg");
+
+      if (!exportPills && modeWrap && exportBtn) {
+        // Find the existing MODE row and insert a new EXPORT row right after it
+        const modeRow = modeWrap.closest('div[style*="justify-content:space-between"]') || null;
+        if (modeRow && modeRow.parentElement) {
+          const exportRow = document.createElement("div");
+          exportRow.style.display = "flex";
+          exportRow.style.flexWrap = "wrap";
+          exportRow.style.gap = "0.5rem";
+          exportRow.style.alignItems = "center";
+          exportRow.style.justifyContent = "space-between";
+
+          const exportInner = document.createElement("div");
+          exportInner.style.display = "flex";
+          exportInner.style.flexWrap = "wrap";
+          exportInner.style.gap = "0.5rem";
+          exportInner.style.alignItems = "center";
+
+          const exportLabel = document.createElement("div");
+          exportLabel.style.minWidth = "110px";
+          exportLabel.style.fontSize = "0.78rem";
+          exportLabel.style.letterSpacing = "0.06em";
+          exportLabel.style.fontWeight = "800";
+          exportLabel.style.color = "rgba(15,31,23,0.55)";
+          exportLabel.style.textTransform = "uppercase";
+          exportLabel.textContent = "Export";
+
+          exportPills = document.createElement("div");
+          exportPills.id = "owExportPills";
+          exportPills.style.display = "flex";
+          exportPills.style.flexWrap = "wrap";
+          exportPills.style.gap = "0.5rem";
+
+          // Move existing PNG button out of mode pills into export pills
+          if (exportBtn.parentElement) exportBtn.parentElement.removeChild(exportBtn);
+          exportBtn.textContent = "PNG";
+          exportPills.appendChild(exportBtn);
+
+          // Add SVG + JPG buttons (new)
+          exportSvgBtn = document.createElement("button");
+          exportSvgBtn.type = "button";
+          exportSvgBtn.id = "owExportSvg";
+          exportSvgBtn.textContent = "SVG";
+          exportPills.appendChild(exportSvgBtn);
+
+          exportJpgBtn = document.createElement("button");
+          exportJpgBtn.type = "button";
+          exportJpgBtn.id = "owExportJpg";
+          exportJpgBtn.textContent = "JPG";
+          exportPills.appendChild(exportJpgBtn);
+
+          exportInner.appendChild(exportLabel);
+          exportInner.appendChild(exportPills);
+          exportRow.appendChild(exportInner);
+
+          modeRow.insertAdjacentElement("afterend", exportRow);
+        }
+      }
+
       if (!rangeWrap || !groupWrap || !exportBtn || !groupSel) return;
       if (!modeNominalBtn || !modeBtn || !modeFreqBtn) return;
 
@@ -1682,7 +1778,7 @@
 
       const modeBtns = [modeNominalBtn, modeBtn, modeFreqBtn].filter(Boolean);
 
-      for (const b of [...rangeBtns, ...groupBtns, modeNominalBtn, modeBtn, modeFreqBtn, exportBtn]) stylePillButton(b);
+      for (const b of [...rangeBtns, ...groupBtns, modeNominalBtn, modeBtn, modeFreqBtn, exportBtn, exportSvgBtn, exportJpgBtn].filter(Boolean)) stylePillButton(b);
 
       function setActive(btns, activeBtn) {
         btns.forEach(b => setPillActive(b, b === activeBtn));
@@ -1697,6 +1793,14 @@
       if (visState.mode === "frequency") setActive(modeBtns, modeFreqBtn);
       else if (visState.mode === "cumulative") setActive(modeBtns, modeBtn);
       else setActive(modeBtns, modeNominalBtn);
+
+      // Export pills: default PNG selected (no effect on rendering, only export format)
+      const exportBtns = [exportBtn, exportSvgBtn, exportJpgBtn].filter(Boolean);
+      function setActiveExport(activeBtn) {
+        exportBtns.forEach(b => setPillActive(b, b === activeBtn));
+      }
+      // Initialize (PNG default)
+      setActiveExport(exportBtn);
 
       function setRange(mode) {
         visState.range = mode;
@@ -1763,7 +1867,9 @@
       modeFreqBtn.addEventListener("click", () => setMode("frequency"));
 
       // Export
-      exportBtn.addEventListener("click", exportVisualsAsPng);
+      exportBtn.addEventListener("click", () => { setActiveExport(exportBtn); exportVisualsAsPng(); });
+      exportSvgBtn?.addEventListener("click", () => { setActiveExport(exportSvgBtn); exportVisualsAsSvg(); });
+      exportJpgBtn?.addEventListener("click", () => { setActiveExport(exportJpgBtn); exportVisualsAsJpg(); });
     }
 
     // Init controls once on workbench init
