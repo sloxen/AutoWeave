@@ -605,13 +605,13 @@
     head.style.background = "rgba(255,255,255,0.72)";
 
     const title = document.createElement("div");
-    title.textContent = "OVERVIEW";
+    title.textContent = "Overview";
     title.style.fontWeight = "800";
     title.style.letterSpacing = "0.02em";
     title.style.color = "rgba(15,31,23,0.86)";
 
     const meta = document.createElement("div");
-    meta.textContent = `NUMBER OF PROJECTS: ${projectsSorted.length}  |  NUMBER OF ENTRIES: ${rowCount}`;
+    meta.textContent = `Number of projects: ${projectsSorted.length}  |         Number of entries: ${rowCount}`;
     meta.style.color = "rgba(15,31,23,0.62)";
     meta.style.fontWeight = "700";
     meta.style.marginLeft = "auto";
@@ -650,7 +650,7 @@
 
     kpis.appendChild(kpi("Total income (£)", `${fmtMoney(totalIncome)}`));
     kpis.appendChild(kpi("Total time (h)", `${fmtHours(totalHours)}`));
-    kpis.appendChild(kpi("Average ratio (£/h)", `£${fmtRatio(ratio)}`));
+    kpis.appendChild(kpi("Average ratio (£/h)", `${fmtRatio(ratio)}`));
 
     // Table (tibble-like)
     const tableWrap = document.createElement("div");
@@ -669,9 +669,9 @@
     const trh = document.createElement("tr");
     const headers = [
       { t: "project", align: "left" },
-      { t: "income", align: "right" },
-      { t: "time", align: "right" },
-      { t: "ratio", align: "right" },
+      { t: "income (£)", align: "right" },
+      { t: "time (h)", align: "right" },
+      { t: "ratio (£/h)", align: "right" },
     ];
     for (const h of headers) {
       const th = document.createElement("th");
@@ -701,9 +701,9 @@
 
       const cells = [
         { v: name, align: "left", weight: "800", color: "rgba(15,31,23,0.86)" },
-        { v: `£${fmtMoney(rec.income)}`, align: "right" },
+        { v: `${fmtMoney(rec.income)}`, align: "right" },
         { v: `${fmtHours(rec.hours)}`, align: "right" },
-        { v: `£${fmtRatio(pRatio)}`, align: "right" },
+        { v: `${fmtRatio(pRatio)}`, align: "right" },
       ];
 
       for (const c of cells) {
