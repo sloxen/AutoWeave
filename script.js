@@ -604,12 +604,19 @@
     head.style.borderRadius = "12px";
     head.style.background = "rgba(255,255,255,0.72)";
 
+    const title = document.createElement("div");
+    title.textContent = "OVERVIEW";
+    title.style.fontWeight = "800";
+    title.style.letterSpacing = "0.02em";
+    title.style.color = "rgba(15,31,23,0.86)";
+
     const meta = document.createElement("div");
     meta.textContent = `NUMBER OF PROJECTS: ${projectsSorted.length}      &nbsp&nbspNUMBER OF ENTRIES: ${rowCount}`;
     meta.style.color = "rgba(15,31,23,0.62)";
     meta.style.fontWeight = "700";
     meta.style.marginLeft = "auto";
 
+    head.appendChild(title);
     head.appendChild(meta);
 
     const kpis = document.createElement("div");
