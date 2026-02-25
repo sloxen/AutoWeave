@@ -509,7 +509,7 @@
     xAxis.style.display = "grid";
     xAxis.style.gridTemplateColumns = `repeat(${Math.max(1, data.length)}, minmax(0, 1fr))`;
     xAxis.style.gap = "8px";
-    xAxis.style.alignItems = "end";
+    xAxis.style.alignItems = "flex-end";
     xAxis.style.background = "transparent";
     xAxis.style.border = "none";
     xAxis.style.padding = "0 8px 0 8px";
@@ -593,7 +593,7 @@ Total: ${valueKey === "count" ? String(Math.round(Number(d.total)||0)) : (valueK
       labelBox.style.height = "86px";
       labelBox.style.display = "flex";
       labelBox.style.alignItems = "flex-end";
-      labelBox.style.justifyContent = "center";
+      labelBox.style.justifyContent = "flex-end";
       labelBox.style.overflow = "visible";
 
       const label = createEl("div", { className: "aw-bar-label", textContent: d.key });
@@ -601,8 +601,8 @@ Total: ${valueKey === "count" ? String(Math.round(Number(d.total)||0)) : (valueK
       label.style.textAlign = "left";
       label.style.color = "rgba(15,31,23,0.62)";
       label.style.whiteSpace = "nowrap";
-      label.style.transform = "translateY(6px) rotate(-75deg)";
-      label.style.transformOrigin = "bottom left";
+      label.style.transform = "rotate(-75deg)"; 
+      label.style.transformOrigin = "bottom center";
       label.style.display = "inline-block";
       label.style.maxWidth = "160px";
 
