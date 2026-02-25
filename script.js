@@ -1533,9 +1533,9 @@ function normalizeFigureGap(cardEl, fromId, toId, gapPx) {
       if (!visIncome || !visDuration || !visRatio) return;
 
       // Equalise the gap between figures (Duration↔Income and Income↔Ratio)
-      const GAP = 36;
+      const GAP = 32;
       visDuration.style.marginBottom = GAP + "px";
-      visIncome.style.marginBottom = GAP + "px";
+      visIncome.style.marginBottom = "20px";
       visRatio.style.marginBottom = "0px";
 
       // Normalise only the spacer blocks between the figure containers (if present in tech.html)
