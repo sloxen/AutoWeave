@@ -488,31 +488,31 @@
     yAxis.appendChild(yLine);
 
     // Right side = plot panel (bars) + x-axis labels (transparent)
-const plotCol = createEl("div");
-plotCol.style.display = "flex";
-plotCol.style.flexDirection = "column";
-plotCol.style.gap = "6px";
+    const plotCol = createEl("div");
+    plotCol.style.display = "flex";
+    plotCol.style.flexDirection = "column";
+    plotCol.style.gap = "6px";
 
-// Bars panel (ONLY this area has the plot background/border)
-const chartArea = createEl("div", { className: "aw-stacked-chart" });
-chartArea.style.border = "1px solid rgba(15,31,23,0.10)";
-chartArea.style.borderRadius = "14px";
-chartArea.style.background = "rgba(255,255,255,0.86)";
-chartArea.style.padding = "10px 8px 8px 8px";
-chartArea.style.display = "grid";
-chartArea.style.gridTemplateColumns = `repeat(${Math.max(1, data.length)}, minmax(0, 1fr))`;
-chartArea.style.gap = "8px";
-chartArea.style.alignItems = "end";
+    // Bars panel (ONLY this area has the plot background/border)
+    const chartArea = createEl("div", { className: "aw-stacked-chart" });
+    chartArea.style.border = "1px solid rgba(15,31,23,0.10)";
+    chartArea.style.borderRadius = "14px";
+    chartArea.style.background = "rgba(255,255,255,0.86)";
+    chartArea.style.padding = "10px 8px 8px 8px";
+    chartArea.style.display = "grid";
+    chartArea.style.gridTemplateColumns = `repeat(${Math.max(1, data.length)}, minmax(0, 1fr))`;
+    chartArea.style.gap = "8px";
+    chartArea.style.alignItems = "end";
 
-// X-axis labels row (no background behind labels)
-const xAxis = createEl("div");
-xAxis.style.display = "grid";
-xAxis.style.gridTemplateColumns = `repeat(${Math.max(1, data.length)}, minmax(0, 1fr))`;
-xAxis.style.gap = "8px";
-xAxis.style.alignItems = "start";
-xAxis.style.background = "transparent";
-xAxis.style.border = "none";
-xAxis.style.padding = "0 8px 0 8px";
+    // X-axis labels row (no background behind labels)
+    const xAxis = createEl("div");
+    xAxis.style.display = "grid";
+    xAxis.style.gridTemplateColumns = `repeat(${Math.max(1, data.length)}, minmax(0, 1fr))`;
+    xAxis.style.gap = "8px";
+    xAxis.style.alignItems = "end";
+    xAxis.style.background = "transparent";
+    xAxis.style.border = "none";
+    xAxis.style.padding = "0 8px 0 8px";
     const maxTotal = Math.max(1, ...data.map(d => Number(d.total) || 0));
 
     // Y-axis ticks
