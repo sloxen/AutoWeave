@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Verify Email – AutoWeave</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="si-theme">
+
+  <section style="padding:120px 20px; text-align:center;">
+    <h1 style="font-weight:900;">Verifying your email…</h1>
+    <p id="status" style="opacity:0.7; margin-top:20px;">Please wait.</p>
+  </section>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const token = params.get("token");
+const statusEl = document.getElementById("status");
+
+if (!token) {
+  statusEl.textContent = "Invalid verification link.";
+} else {
+  fetch("https://autoweave-backend.onrender.com/api/v1/auth/verify?token=" + token)
+    .then(res => res.json())
+    .then(data => {
+      statusEl.textContent = data.message || "Email verified successfully.";
+    })
+    .catch(() => {
+      statusEl.textContent = "Verification failed. The link may have expired.";
+    });
+}
+</script>
+
+</body>
+</html>
