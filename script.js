@@ -168,7 +168,7 @@
       window.dispatchEvent(new Event("ow-auth-changed"));
     } catch (e) {}
   }
-  
+
   // =========================================================
   // 3) Visualisation helpers (lightweight stacked bars)
   // =========================================================
@@ -2087,7 +2087,7 @@ function normalizeFigureGap(cardEl, fromId, toId, gapPx) {
     });
   
     // ---------------------------------------------------------
-    // Auto-load sample CSVs from /assets/technology on page load
+    // Auto-load sample CSVs from assets/technology on page load
     // (only if user hasn't selected files) and run merge once
     // ---------------------------------------------------------
     async function maybeLoadDefaultSamples() {
@@ -2116,8 +2116,8 @@ function normalizeFigureGap(cardEl, fromId, toId, gapPx) {
         setStatus("Loading sample files…");
 
         const [entriesF, incomesF] = await Promise.all([
-          hasEntries ? null : fetchAsFile("/assets/technology/time_sample.csv", "time_sample.csv"),
-          hasIncomes ? null : fetchAsFile("/assets/technology/income_sample.csv", "income_sample.csv"),
+          hasEntries ? null : fetchAsFile("assets/technology/time_sample.csv", "time_sample.csv"),
+          hasIncomes ? null : fetchAsFile("assets/technology/income_sample.csv", "income_sample.csv"),
         ]);
 
         if (entriesF) setInputFile(entriesFile, entriesF);
@@ -2126,7 +2126,7 @@ function normalizeFigureGap(cardEl, fromId, toId, gapPx) {
         // Optional projects sample (ignore if missing)
         if (projectsFile && !hasProjects) {
           try {
-            const projectsF = await fetchAsFile("/assets/technology/project_sample.csv", "project_sample.csv");
+            const projectsF = await fetchAsFile("assets/technology/project_sample.csv", "project_sample.csv");
             setInputFile(projectsFile, projectsF);
           } catch (e) {
             // ignore
