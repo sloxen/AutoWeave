@@ -110,33 +110,25 @@
   }
 
   // =========================================================
-  // 2) Auth helpers (cleaned + hardened)
+  // 2) Auth helpers (single source of truth)
   // =========================================================
-
   function normalizeToken(raw) {
     if (!raw) return "";
     let t = String(raw).trim();
 
-    // If token stored as quoted JSON string
+    // stored as "Bearer <jwt>" -> keep only jwt
+    if (/^bearer\s+/i.test(t)) t = t.replace(/^bearer\s+/i, "").trim();
+
+    // stored as a quoted JSON string -> unquote
     if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
       try { t = JSON.parse(t); } catch (e) {}
       t = String(t).trim();
     }
 
-    // Strip Bearer prefix if present
-    if (/^bearer\s+/i.test(t)) {
-      t = t.replace(/^bearer\s+/i, "").trim();
-    }
+    // guard common bad values
+    if (t === "null" || t === "undefined") return "";
 
     return t;
-  }
-
-  function getAuthEmail() {
-    try {
-      return localStorage.getItem(AUTH_EMAIL_KEY) || "";
-    } catch (e) {
-      return "";
-    }
   }
 
   function getAuthToken() {
@@ -147,10 +139,12 @@
     }
   }
 
-  function notifyAuthChanged() {
+  function getAuthEmail() {
     try {
-      window.dispatchEvent(new CustomEvent("ow-auth-changed"));
-    } catch (e) {}
+      return localStorage.getItem(AUTH_EMAIL_KEY) || "";
+    } catch (e) {
+      return "";
+    }
   }
 
   function setAuthToken(token, email) {
@@ -160,11 +154,10 @@
       if (t) localStorage.setItem(AUTH_STORAGE_KEY, t);
       else localStorage.removeItem(AUTH_STORAGE_KEY);
 
-      const em = (email && String(email).trim()) || "";
-      if (em) localStorage.setItem(AUTH_EMAIL_KEY, em);
+      if (email) localStorage.setItem(AUTH_EMAIL_KEY, String(email));
       else localStorage.removeItem(AUTH_EMAIL_KEY);
 
-      notifyAuthChanged();
+      window.dispatchEvent(new Event("ow-auth-changed"));
     } catch (e) {}
   }
 
@@ -172,55 +165,10 @@
     try {
       localStorage.removeItem(AUTH_STORAGE_KEY);
       localStorage.removeItem(AUTH_EMAIL_KEY);
+      window.dispatchEvent(new Event("ow-auth-changed"));
     } catch (e) {}
-
-    notifyAuthChanged();
   }
-
-  function apiUrl(path) {
-    const p = String(path || "");
-    if (!API_BASE) return p.startsWith("/") ? p : `/${p}`;
-    return `${API_BASE}${p.startsWith("/") ? "" : "/"}${p}`;
-  }
-
-  async function apiFetch(path, options = {}) {
-    const token = getAuthToken();
-
-    const headers = new Headers(options.headers || {});
-    if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
-      headers.set("Content-Type", "application/json");
-    }
-
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-
-    const res = await fetch(apiUrl(path), { ...options, headers });
-
-    if (!res.ok) {
-      let msg = `${res.status} ${res.statusText}`;
-      try {
-        const ct = res.headers.get("content-type") || "";
-        if (ct.includes("application/json")) {
-          const j = await res.json();
-          msg = j?.detail || j?.message || msg;
-        } else {
-          const t = await res.text();
-          if (t) msg = t;
-        }
-      } catch (e) {}
-
-      // Auto-clear expired or invalid sessions
-      if (res.status === 401 || res.status === 403) {
-        clearAuthToken();
-      }
-
-      const err = new Error(String(msg));
-      err.status = res.status;
-      throw err;
-    }
-
-    return res;
-  }
-
+  
   // =========================================================
   // 3) Visualisation helpers (lightweight stacked bars)
   // =========================================================
