@@ -1387,7 +1387,7 @@ Total: ${valueKey === "count" ? String(Math.round(Number(d.total)||0)) : (valueK
     }
 
     if (!incomesFile || !entriesFile ||
-        !runMergeBtn || !statusBox || !previewMerged || !downloadBtn) {
+        !runMergeBtn || !statusBox || !previewMerged || !statsMerged || !downloadBtn) {
       return;
     }
 
