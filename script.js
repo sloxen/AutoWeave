@@ -138,6 +138,22 @@
     }
   }
 
+  function normalizeToken(raw) {
+    if (!raw) return "";
+    let t = String(raw).trim();
+
+    // stored as "Bearer <jwt>" -> keep only jwt
+    if (/^bearer\s+/i.test(t)) t = t.replace(/^bearer\s+/i, "").trim();
+
+    // stored as a quoted JSON string -> unquote
+    if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+      try { t = JSON.parse(t); } catch (e) {}
+      t = String(t).trim();
+    }
+
+    return t;
+  }
+
   function getAuthToken() {
     try {
       return normalizeToken(localStorage.getItem(AUTH_STORAGE_KEY) || "");
@@ -153,9 +169,15 @@
       if (t) localStorage.setItem(AUTH_STORAGE_KEY, t);
       else localStorage.removeItem(AUTH_STORAGE_KEY);
 
-      const em = (email && String(email).trim()) || "";
-      if (em) localStorage.setItem(AUTH_EMAIL_KEY, em);
+      if (email) localStorage.setItem(AUTH_EMAIL_KEY, String(email));
       else localStorage.removeItem(AUTH_EMAIL_KEY);
+    } catch (e) {}
+  }
+
+  function clearAuthToken() {
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(AUTH_EMAIL_KEY);
     } catch (e) {}
   }
 
@@ -193,6 +215,13 @@
     }
 
     return res;
+  }
+  function getAuthEmail() {
+    try {
+      return localStorage.getItem(AUTH_EMAIL_KEY) || "";
+    } catch (e) {
+      return "";
+    }
   }
   
   function clearAuthToken() {
