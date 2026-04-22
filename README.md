@@ -226,7 +226,7 @@ All charts:
 
 # Contribution
 
-Maintained by [**Sloxen™ GitHub**](https://github.com/sloxen), and [**Daddy Sloth GitHub**](https://github.com/drxilu).
+Maintained by [**Sloxen™ GitHub**](https://github.com/sloxen), and [**Daddy Sloth**](https://github.com/daddysloth).
 
 ---
 
