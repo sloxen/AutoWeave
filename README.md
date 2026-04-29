@@ -13,7 +13,7 @@
 
 **AutoWeave** is developed and maintained by **Sloxen™**. It is a deterministic, browser-first **CSV merge + ETL** web application designed for real-world operational datasets (time logs, income records, project lists) that arrive **asynchronously** and inconsistently.
 
-AutoWeave focuses on **reproducibility, auditability, and low-friction workflows**: validate → normalise → merge → deduplicate → summarise → visualise → export.
+As part of **Hybrid Intelligence System**, AutoWeave focuses on **reproducibility, auditability, and low-friction workflows**: validate → normalise → merge → deduplicate → summarise → visualise → export.
 
 🌐 Website: https://autoweave.sloxen.com
 
