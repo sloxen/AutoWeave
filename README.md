@@ -11,7 +11,7 @@
 ![Org](https://img.shields.io/badge/Research-Sloxen™-black)
 [![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20WIN%20%7C%20Linux%20%7C%20WSL%20%7C%20macOS-lightgrey)]()
 
-**AutoWeave** is developed and maintained by **Sloxen™**. It is a deterministic, browser-first **CSV merge + ETL** tool designed for real-world operational datasets (time logs, income records, project lists) that arrive **asynchronously** and inconsistently.
+**AutoWeave** is developed and maintained by **Sloxen™**. It is a deterministic, browser-first **CSV merge + ETL** web application designed for real-world operational datasets (time logs, income records, project lists) that arrive **asynchronously** and inconsistently.
 
 AutoWeave focuses on **reproducibility, auditability, and low-friction workflows**: validate → normalise → merge → deduplicate → summarise → visualise → export.
 
