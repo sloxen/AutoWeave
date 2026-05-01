@@ -82,3 +82,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
 });
+
+/* =========================
+   Plot carousel scroll (GLOBAL)
+========================= */
+function scrollPlots(button, direction) {
+  const carousel = button.closest(".plot-carousel");
+  if (!carousel) return;
+
+  const container = carousel.querySelector(
+    ".product-plot-strip, .product-plot-strip-wide"
+  );
+
+  if (!container) return;
+
+  const scrollAmount = container.clientWidth * 0.8;
+
+  container.scrollBy({
+    left: direction * scrollAmount,
+    behavior: "smooth"
+  });
+}
