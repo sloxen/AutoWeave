@@ -1,5 +1,5 @@
 /* =========================================================
-   Sloxen — style.css (tidied + deduplicated)
+   Sloxen - style.css (tidied + deduplicated)
    0) Reset + Variables
    ========================================================= */
 
@@ -258,7 +258,7 @@ a:hover{ text-decoration: underline; }
 /* Pill tagline */
 .pill{
   display: inline-block;
-  margin-top: 1.1rem;
+  margin-top: 0rem;
   border-radius: 9999px;
   border: 1px solid rgba(15,31,23,0.10);
   padding: 0.4rem 0.9rem;
@@ -389,6 +389,103 @@ a:hover{ text-decoration: underline; }
   margin: 0;
 }
 
+.process-flow {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding: 1rem 0;
+  margin: 1rem 0;
+}
+
+.step {
+  flex: 0 0 auto;
+  min-width: 140px;
+  text-align: center;
+  position: relative;
+}
+
+.step-number {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto 0.5rem;
+  border-radius: 50%;
+  background: #1b6b02;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.step p {
+  font-size: 0.9rem;
+  color: #1b6b02;
+}
+
+/* optional connecting line */
+.step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  right: -0.75rem;
+  width: 1.5rem;
+  height: 2px;
+  background: #e5e7eb;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.pricing-card {
+  border-radius: 18px;
+  padding: 1.25rem;
+  background: #EEF5FA;
+  border: 1px solid #D6E6F2;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pricing-card:nth-child(1) {
+  background: #F0F7FC;
+  border-color: #2C7FB8;
+}
+
+.pricing-card:nth-child(2) {
+  background: #F2F8FC;
+  border-color: #CFE3F1;
+}
+
+.pricing-card:nth-child(3) {
+  background: #F6FAFD;
+  border-color: #DDEBF5;
+}
+
+.pricing-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.pricing-tag {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2C7FB8;
+}
+
+.pricing-note {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.pricing-card p {
+  color: #374151;
+}
+
 
 /* =========================================================
    11) Anchor/Scroll Offset (single system)
@@ -424,19 +521,131 @@ figure img{
   margin: 1.5rem auto;
 }
 
-.zoomable img{
-  width: 100%;
+.figure-half figcaption {
+  display: block;
+  width: min(90vw, 1036px);
+  margin-top: 0.75rem;
+  margin-left: 50%;
+  transform: translateX(-50%);
+  text-align: left;
+  position: relative;
+  z-index: 1;
+}
+
+.zoomable img {
+  position: relative;
+  z-index: 2;
   cursor: zoom-in;
   transition: transform 0.25s ease;
+  transform-origin: center top;
 }
 
-.zoomable img:hover{
+.zoomable img:hover {
   transform: scale(2);
+  z-index: 10;
 }
 
-.zoomable img:active{
+.zoomable img:active {
   transform: scale(1.5);
+  z-index: 10;
   cursor: zoom-out;
+}
+
+.plot-carousel {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.plot-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.plot-nav.left {
+  left: -10px;
+}
+
+.plot-nav.right {
+  right: -10px;
+}
+
+.plot-nav:hover {
+  background: white;
+}
+
+.product-plot-strip {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  padding: 0.75rem 0 1rem;
+  margin: 1rem 0 1.25rem;
+  max-width: 100%;
+}
+
+.product-plot-strip img {
+  flex: 0 0 auto;
+  height: 520px;
+  width: auto;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  scroll-snap-align: start;
+  background: #fff;
+  object-fit: cover;
+}
+
+.product-plot-strip::-webkit-scrollbar {
+  height: 8px;
+}
+
+.product-plot-strip::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.product-plot-strip-wide {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  padding: 0.75rem 0 1rem;
+  margin: 1rem 0 1.25rem;
+  max-width: 100%;
+}
+
+.product-plot-strip-wide img {
+  flex: 0 0 auto;
+  height: 200px;
+  width: auto;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  scroll-snap-align: start;
+  background: #fff;
+  object-fit: cover;
+}
+
+.product-plot-strip-wide::-webkit-scrollbar {
+  height: 8px;
+}
+
+.product-plot-strip-wide::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
 }
 
 
@@ -445,7 +654,7 @@ figure img{
    ========================================================= */
 
 .site-footer{
-  font-size: 0.74rem;      /* align with nav pills */
+  font-size: 0.7rem;      /* align with nav pills */
   padding: 0.7rem 0 1rem;  /* tighter vertical rhythm */
 }
 
@@ -462,13 +671,8 @@ figure img{
 
 .footer-meta p{
   margin: 0.05rem 0;
-  line-height: 1.35;
+  line-height: 1.2;
   font-size: inherit;
-}
-
-.footer-links{
-  display: flex;
-  gap: 0.7rem;
 }
 
 .footer-links a{
@@ -482,6 +686,12 @@ figure img{
   text-decoration: underline;
 }
 
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+}
 
 /* =========================================================
    14) Page Theme
@@ -641,6 +851,34 @@ nav a.active{
   text-decoration: none !important;
 }
 
+#backToTop {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+
+  padding: 8px 14px;
+  border-radius: 999px;
+
+  border: 1px solid rgba(15,31,23,0.15);
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(6px);
+
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(15,31,23,0.85);
+
+  cursor: pointer;
+  display: none;
+
+  transition: all 0.2s ease;
+  z-index: 1000;
+}
+
+#backToTop:hover {
+  background: rgba(15,31,23,0.06);
+  border-color: rgba(15,31,23,0.25);
+  transform: translateY(-2px);
+}
 
 /* =========================================================
    17) Small helpers
@@ -784,9 +1022,17 @@ nav a.active{
   }
 }
 
+@media (max-width: 720px){
+  .figure-half figcaption {
+    width: calc(100vw - 3rem);
+    max-width: none;
+    position: relative;
+  }
+}
+
 
 /* =========================================================
-   19) Mobile Navigation — Hamburger + Panel
+   19) Mobile Navigation - Hamburger + Panel
    ========================================================= */
 
 /* Hamburger button (mobile only) */
@@ -1025,104 +1271,20 @@ body.nav-open{ overflow: hidden; }
   border: 1px solid rgba(47,125,99,0.35);
 }
 
-/* =========================================================
-   20) AutoWeave Workbench (Variant A: fixed-height dashboard)
-   - Keeps existing palette + card styling.
-   - Minimal page scroll; panes scroll internally.
-   ========================================================= */
-
-.aw-workbench{
-  display: grid;
-  grid-template-columns: 6fr 11fr;
-  gap: 1rem;
-  align-items: stretch;
-
-  /* Fixed-height workbench (app-like) */
-  height: clamp(560px, 120vh, 860px);
+@media (max-width: 640px) {
+  .product-plot-strip img {
+    width: 88vw;
+    max-width: 320px;
+    height: auto;
+    margin: 0 auto;
+  }
 }
 
-/* Pane uses the same “card” language */
-.aw-pane{
-  background: rgba(255,255,255,0.90);
-  border: 1px solid var(--divider);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-  overflow: hidden; /* keeps inner scroll clean */
-  display: flex;
-  flex-direction: column;
-}
-
-/* Pane header stays visible */
-.aw-pane__header{
-  padding: 1rem 1.2rem 0.2rem;
-  flex: 0 0 auto;
-}
-.aw-pane__title{
-  margin: 0;
-  font-size: 1.05rem;
-  letter-spacing: -0.01em;
-}
-.aw-pane__subtitle{
-  margin: 0.35rem 0 0.9rem;
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-
-/* Pane body scrolls (always) */
-.aw-pane__body{
-  padding: 0 1.2rem 1.2rem;
-  display: grid;
-  gap: 1rem;
-
-  flex: 1 1 auto;
-  min-height: 0;        /* IMPORTANT for flex + overflow */
-  overflow: auto;
-}
-
-/* Card blocks inside panes */
-.aw-card{
-  background: var(--surface);
-  border: 1px solid var(--divider);
-  border-radius: 16px;
-  padding: 1rem;
-}
-.aw-card__title{
-  margin: 0 0 0.35rem;
-  font-size: 0.98rem;
-}
-.aw-card__desc{
-  margin: 0 0 0.8rem;
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-
-.aw-steps{
-  margin: 0.2rem 0 0.8rem 1.1rem;
-}
-.aw-checkpoint__row{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.aw-checkpoint__note{
-  margin: 0.7rem 0 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-/* Mobile: stack panes, revert to normal scrolling */
-@media (max-width: 960px){
-  .aw-workbench{
+@media (max-width: 760px) {
+  .pricing-grid {
     grid-template-columns: 1fr;
-    height: auto;            /* no fixed height on mobile */
-  }
-  .aw-pane__body{
-    overflow: visible;
-    min-height: auto;
   }
 }
-
-.aw-workbench, .aw-pane, .aw-pane__body { max-width: 100%; }
 
 /* =========================================================
    END

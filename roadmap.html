@@ -167,63 +167,17 @@
   <!-- Footer injection -->
   <div id="site-footer"></div>
 
-  <script>
-    fetch("footer.html")
-      .then(res => res.text())
-      .then(html => {
-        document.getElementById("site-footer").innerHTML = html;
-        const yearEl = document.getElementById("year");
-        if (yearEl) yearEl.textContent = new Date().getFullYear();
-      });
-  </script>
+  <button id="backToTop" aria-label="Back to top">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <path d="M6 14l6-6 6 6"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"/>
+    </svg>
+  </button>
 
-  <!-- Mobile nav script -->
-  <script>
-    const toggle = document.querySelector(".nav-toggle");
-    const mobileNav = document.getElementById("mobile-nav");
-    const closeBtn = document.querySelector(".mobile-nav__close");
-
-    function openNav(){
-      mobileNav.classList.add("is-open");
-      mobileNav.setAttribute("aria-hidden", "false");
-      toggle?.setAttribute("aria-expanded", "true");
-      document.body.classList.add("nav-open");
-    }
-
-    function closeNav(){
-      mobileNav.classList.remove("is-open");
-      mobileNav.setAttribute("aria-hidden", "true");
-      toggle?.setAttribute("aria-expanded", "false");
-      document.body.classList.remove("nav-open");
-    }
-
-    toggle?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      openNav();
-    });
-
-    closeBtn?.addEventListener("click", closeNav);
-
-    mobileNav?.querySelectorAll("a").forEach(a => a.addEventListener("click", closeNav));
-
-    document.addEventListener("keydown", (e) => {
-      if(e.key === "Escape") closeNav();
-    });
-
-    document.addEventListener("click", (e) => {
-      if (!mobileNav.classList.contains("is-open")) return;
-
-      const target = e.target;
-      if (!(target instanceof Node)) return;
-
-      const clickedInsidePanel = mobileNav.contains(target);
-      const clickedToggle = toggle && toggle.contains(target);
-
-      if (!clickedInsidePanel && !clickedToggle) closeNav();
-    });
-  </script>
-
-  <!-- Keep your existing AutoWeave CSV demo logic -->
-  <script src="./script.js"></script>
+  <script src="autoweave_wb.js"></script>
+  <script src="main.js"></script>
 </body>
 </html>
