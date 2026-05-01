@@ -897,11 +897,64 @@ nav a.active{
   text-decoration: none;
 }
 
+/* =========================================================
+   18) Workbench + Use Cases (merged)
+     - Shared “pane” and “card” styles for workbench and use case sections.
+   ========================================================= */
 
+.aw-workbench {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(320px, 1.15fr);
+  gap: 1rem;
+  align-items: start;
+  margin-top: 1.5rem;
+}
+
+.aw-pane {
+  border: 1px solid rgba(15,31,23,0.10);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.72);
+  overflow: hidden;
+}
+
+.aw-pane__header {
+  padding: 1rem 1rem 0.75rem;
+  border-bottom: 1px solid rgba(15,31,23,0.08);
+}
+
+.aw-pane__title {
+  margin: 0;
+}
+
+.aw-pane__subtitle {
+  margin: 0.25rem 0 0;
+  color: rgba(15,31,23,0.62);
+  font-size: 0.95rem;
+}
+
+.aw-pane__body {
+  padding: 1rem;
+}
+
+.aw-card {
+  border: 1px solid rgba(15,31,23,0.10);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.72);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.aw-card__title {
+  margin: 0 0 0.5rem;
+}
+
+.aw-card__desc {
+  color: rgba(15,31,23,0.70);
+}
 
 
 /* =========================================================
-   18) Mobile
+   19) Mobile
    ========================================================= */
 
 @media (max-width: 720px){
@@ -1030,9 +1083,15 @@ nav a.active{
   }
 }
 
+@media (max-width: 900px) {
+  .aw-workbench {
+    grid-template-columns: 1fr;
+  }
+}
+
 
 /* =========================================================
-   19) Mobile Navigation - Hamburger + Panel
+   20) Mobile Navigation - Hamburger + Panel
    ========================================================= */
 
 /* Hamburger button (mobile only) */

@@ -33,7 +33,6 @@
         <details class="nav-dropdown">
           <summary class="nav-link active" href="page">technology</summary>
           <div class="nav-dropdown-menu" role="menu" aria-label="AutoWeave sections">
-            <a class="nav-dropdown-link" href="tech.html#guided" role="menuitem">guided example</a>
             <a class="nav-dropdown-link" href="tech.html#workbench" role="menuitem">interactive workbench</a>
             <a class="nav-dropdown-link" href="tech.html#usecases" role="menuitem">use cases</a>
           </div>
@@ -72,7 +71,6 @@
 
           <details class="mobile-acc">
             <summary>technology</summary>
-            <a href="tech.html#guided">Guided example</a>
             <a href="tech.html#workbench">Interactive workbench</a>
             <a href="tech.html#usecases">Use cases</a>
           </details>
@@ -97,17 +95,16 @@
   </header>
 
   <main>
-
-    <!-- GUIDED EXAMPLE -->
-    <section id="guided" class="tab-section">
+    <!-- INTERACTIVE WORKBENCH -->
+    <section id="workbench" class="tab-section">
       <div class="container">
-        <h1>Guided example</h1>
+        <h1>Interactive workbench</h1>
         <div class="divider"></div>
 
         <p>
-          Start here to understand the structure and the “threads → merge → checkpoint” model.
-        </p>
-
+          AutoWeave applies structured trims, contextual merge logic, and controlled checkpoints on the backend — returning a clean preview and downloadable output.
+        </p> 
+        
         <h2>Workflow</h2>
         <div class="aw-card">
           <div class="contact-form" style="max-width: 100%;">
@@ -128,46 +125,6 @@
             </p>
           </div>
         </div>
-
-        <div class="spacer-lg"></div>
-
-        <h2>Inputs</h2>
-        <div class="aw-card">
-          <p class="aw-card__desc">
-            Try sample AutoTrac exports:
-            <a href="assets/technology/time_sample.csv" download>time csv</a>,
-            <a href="assets/technology/income_sample.csv" download>income csv</a>,
-            <a href="assets/technology/project_sample.csv" download>project csv</a>.
-          </p>
-
-          <div class="contact-form" style="max-width: 100%;">
-            <div class="form-row">
-              <label for="guidedFileInput">Upload a CSV</label>
-              <input id="guidedFileInput" type="file" accept=".csv,text/csv" />
-            </div>
-            <button type="button" id="guidedClearBtn">Clear</button>
-          </div>
-
-          <div class="contact-form" style="max-width: 100%;">
-            <div class="form-row">
-              <label>Preview</label>
-              <textarea id="guidedPreview" readonly placeholder="Your CSV preview will appear here…"></textarea>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- INTERACTIVE WORKBENCH -->
-    <section id="workbench" class="tab-section">
-      <div class="container">
-        <h1>Interactive workbench</h1>
-        <div class="divider"></div>
-
-        <p>
-          AutoWeave applies structured trims, contextual merge logic, and controlled checkpoints on the backend — returning a clean preview and downloadable output.
-        </p>        
         
         <p>
           Upload your business data after logging in or creating an account — we protect your <a href="https://sloxen.com/privacy" target="_blank">privacy</a>. 
