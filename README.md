@@ -2,16 +2,16 @@
 
 <img src="assets/autoweave.svg" align="right" width="180" />
 
-[![Static Badge](https://img.shields.io/badge/License-Sloxen™-darkgreen)]()
+[![Static Badge](https://img.shields.io/badge/License-Sloxen®-darkgreen)]()
 [![Static Badge](https://img.shields.io/badge/Build-Passing-%23a9f378)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]()
 [![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-orange.svg)]()
 [![Status](https://img.shields.io/badge/Project-Active-brightgreen.svg)]()
 
-![Org](https://img.shields.io/badge/Research-Sloxen™-black)
+![Org](https://img.shields.io/badge/Research-Sloxen®-black)
 [![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20WIN%20%7C%20Linux%20%7C%20WSL%20%7C%20macOS-lightgrey)]()
 
-**AutoWeave** is developed and maintained by **Sloxen™**. It is a deterministic, browser-first **CSV merge + ETL** web application designed for real-world operational datasets (time logs, income records, project lists) that arrive **asynchronously** and inconsistently.
+**AutoWeave** is developed and maintained by **Sloxen®**. It is a deterministic, browser-first **CSV merge + ETL** web application designed for real-world operational datasets (time logs, income records, project lists) that arrive **asynchronously** and inconsistently.
 
 As part of **Hybrid Intelligence System**, AutoWeave focuses on **reproducibility, auditability, and low-friction workflows**: validate → normalise → merge → deduplicate → summarise → visualise → export.
 
@@ -226,13 +226,13 @@ All charts:
 
 # Contribution
 
-Maintained by [**Sloxen™ GitHub**](https://github.com/sloxen), and [**Daddy Sloth**](https://github.com/daddysloth).
+Maintained by [**Sloxen® GitHub**](https://github.com/sloxen), and [**Daddy Sloth**](https://github.com/daddysloth).
 
 ---
 
 # License
 
-© 2026 **Sloxen™**.
+© 2026 **Sloxen®**.
 
 A trading name of **Sloxen Ltd**
 Registered in England and Wales (Company No. 16907507).
